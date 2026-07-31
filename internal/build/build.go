@@ -77,6 +77,25 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 	return dargs, eff.Fetches, nil
 }
 
+// EmbedArg returns the -DPHP_EMBED_SRC argument that builds the project's PHP source into
+// the firmware's read-only image, for an `embedded` storage project. The bool is false for
+// a `microsd` project (the source ships on the card, so there is nothing to embed). src is
+// the project's PHP source folder ([php].src, default "project-src") resolved to an absolute
+// path against projectDir, since ESP-IDF runs from its own build tree.
+func EmbedArg(cfg *config.Config, projectDir string) (string, bool) {
+	if cfg.StorageType != "embedded" {
+		return "", false
+	}
+	src := cfg.Php.Src
+	if src == "" {
+		src = "project-src"
+	}
+	if !filepath.IsAbs(src) {
+		src = filepath.Join(projectDir, src)
+	}
+	return "-DPHP_EMBED_SRC=" + src, true
+}
+
 // compiledDir is where the full ESP-IDF build tree lives, under the project's build/.
 func compiledDir(buildDir string) string { return filepath.Join(buildDir, "compiled") }
 

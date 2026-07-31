@@ -118,6 +118,11 @@ flashable images (`php-esp32.bin`, `bootloader.bin`, `partition-table.bin`) are 
 `build/`. Because the build output and `sdkconfig` are per-project, several projects can share
 one php-esp32 install with isolated, side-by-side builds.
 
+For an `embedded` project (`storage_type = "embedded"`), the build also passes
+`-DPHP_EMBED_SRC=<project-src>`, so php-esp32 packs your PHP source into a read-only image
+(`storage.bin`) that `flash` writes into the chip — the board then runs without a card. A
+`microsd` project embeds nothing; you copy `project-src/` to the card yourself.
+
 The build is shown as phases with a compile progress bar. If it fails, the full ESP-IDF output
 is printed so you can see the real error.
 
@@ -126,7 +131,10 @@ Flags: `--idf-path`, `--php-esp32-path`.
 ### `phpflash flash [-p port]`
 
 Builds (if needed) and flashes the firmware to the board (`idf.py flash`). The serial port comes
-from `-p`, else the config, else ESP-IDF's autodetect.
+from `-p`, else the config's `[board].port`, else the first serial device that exists —
+`/dev/ttyACM*` (the Pico's on-board CH343P bridge) before `/dev/ttyUSB*` — else ESP-IDF's
+autodetect. Detection only checks that the device node exists; it never opens a port, so it can't
+disturb an unrelated device.
 
 ### `phpflash monitor [-p port]`
 

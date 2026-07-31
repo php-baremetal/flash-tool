@@ -47,6 +47,33 @@ func TestArgsDeterministic(t *testing.T) {
 	}
 }
 
+func TestEmbedArg(t *testing.T) {
+	// microsd: nothing to embed.
+	msd := &config.Config{StorageType: "microsd", Php: config.PhpConfig{Src: "project-src"}}
+	if arg, ok := EmbedArg(msd, "/proj"); ok {
+		t.Errorf("microsd should not embed, got %q", arg)
+	}
+
+	// embedded: source dir resolved absolute against the project dir.
+	emb := &config.Config{StorageType: "embedded", Php: config.PhpConfig{Src: "project-src"}}
+	arg, ok := EmbedArg(emb, "/proj")
+	if !ok || arg != "-DPHP_EMBED_SRC=/proj/project-src" {
+		t.Errorf("EmbedArg = %q, %v", arg, ok)
+	}
+
+	// embedded with an empty src falls back to project-src.
+	def := &config.Config{StorageType: "embedded"}
+	if arg, _ := EmbedArg(def, "/proj"); arg != "-DPHP_EMBED_SRC=/proj/project-src" {
+		t.Errorf("default src arg = %q", arg)
+	}
+
+	// an absolute src is used as-is.
+	abs := &config.Config{StorageType: "embedded", Php: config.PhpConfig{Src: "/abs/src"}}
+	if arg, _ := EmbedArg(abs, "/proj"); arg != "-DPHP_EMBED_SRC=/abs/src" {
+		t.Errorf("absolute src arg = %q", arg)
+	}
+}
+
 type fakeInvoker struct {
 	fetches []string
 	idf     [][]string

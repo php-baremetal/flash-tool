@@ -8,7 +8,22 @@ import (
 	"phpflash/internal/build"
 	"phpflash/internal/config"
 	"phpflash/internal/manifest"
+	"phpflash/internal/platform"
 )
+
+// resolvePort picks the serial port: the -p flag, else the config's [board].port, else the
+// first serial device that actually exists (/dev/ttyACM* first -- the Pico's CH343P bridge),
+// else "" so ESP-IDF autodetects. Detection only checks that the device node exists; it never
+// opens a port, so it can't hang on or disturb a device that isn't the board.
+func resolvePort(flag, cfgPort string) string {
+	if flag != "" {
+		return flag
+	}
+	if cfgPort != "" {
+		return cfgPort
+	}
+	return platform.DetectPort()
+}
 
 // projectBuildDir / projectSdkconfig locate the project's own build output and
 // sdkconfig, so each project keeps an isolated build in its own folder.
@@ -64,6 +79,13 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 	dargs, fetches, err := build.Args(cfg, m, repo.DefaultVersion)
 	if err != nil {
 		return nil, err
+	}
+	// For an `embedded` project, build the PHP source into the firmware image. The
+	// project dir is the current working directory (where the config lives).
+	if wd, err := os.Getwd(); err == nil {
+		if arg, ok := build.EmbedArg(cfg, wd); ok {
+			dargs = append(dargs, arg)
+		}
 	}
 	return &buildContext{
 		phpDir:    phpDir,

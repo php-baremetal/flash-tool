@@ -18,16 +18,17 @@ func newMonitorCmd() *cobra.Command {
 			// monitor needs only the paths and a port -- no manifest/build args.
 			cfg, _ := config.Load(config.FileName) // optional: a config supplies path/port defaults
 			idf, phpDir := resolveDirs(idfPath, phpPath, cfg)
-			p := port
-			if p == "" && cfg != nil {
-				p = cfg.Board.Port
+			var cfgPort string
+			if cfg != nil {
+				cfgPort = cfg.Board.Port
 			}
+			p := resolvePort(port, cfgPort)
 			inv := build.ExecInvoker{PhpEsp32Dir: phpDir, IdfPath: idf, Out: os.Stdout}
 			return build.Monitor(inv, os.Stdout, projectBuildDir(), p)
 		},
 	}
 	c.Flags().StringVar(&idfPath, "idf-path", "", "ESP-IDF path")
 	c.Flags().StringVar(&phpPath, "php-esp32-path", "", "php-esp32 path")
-	c.Flags().StringVarP(&port, "port", "p", "", "serial port (empty = autodetect)")
+	c.Flags().StringVarP(&port, "port", "p", "", "serial port (empty = /dev/ttyACM*, then autodetect)")
 	return c
 }

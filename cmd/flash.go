@@ -18,16 +18,13 @@ func newFlashCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			p := port
-			if p == "" {
-				p = bc.port
-			}
+			p := resolvePort(port, bc.port)
 			inv := build.ExecInvoker{PhpEsp32Dir: bc.phpDir, IdfPath: bc.idfPath, Out: os.Stdout}
 			return build.Flash(inv, os.Stdout, bc.buildDir, bc.dargs, p)
 		},
 	}
 	c.Flags().StringVar(&idfPath, "idf-path", "", "ESP-IDF path")
 	c.Flags().StringVar(&phpPath, "php-esp32-path", "", "php-esp32 path")
-	c.Flags().StringVarP(&port, "port", "p", "", "serial port (empty = autodetect)")
+	c.Flags().StringVarP(&port, "port", "p", "", "serial port (empty = /dev/ttyACM*, then autodetect)")
 	return c
 }
