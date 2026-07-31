@@ -1,0 +1,8 @@
+# Compiled binary
+/phpflash
+
+phpflash
+# Go test / coverage artifacts
+*.test
+*.out
+coverage.txt

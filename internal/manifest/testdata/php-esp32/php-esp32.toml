@@ -1,0 +1,2 @@
+default_version = "8.3.32"
+default_board   = "esp32-p4/esp32-p4-pico"

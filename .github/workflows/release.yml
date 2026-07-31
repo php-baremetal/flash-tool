@@ -1,0 +1,96 @@
+name: release
+
+# Runs when a version tag is pushed, e.g.  git tag v1.0.0 && git push origin v1.0.0
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # needed to create the GitHub release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build Linux binaries
+        run: |
+          set -eu
+          VERSION="${GITHUB_REF_NAME}"
+          mkdir -p dist
+          # Asset names carry no version so the release/latest/download URL is stable;
+          # the version is baked into the binary (phpflash --version) and is the tag.
+          for arch in amd64 arm64; do
+            out="phpflash-linux-${arch}"
+            echo "building ${out}"
+            GOOS=linux GOARCH="${arch}" CGO_ENABLED=0 \
+              go build -trimpath -ldflags "-s -w -X phpflash/cmd.Version=${VERSION}" \
+              -o "dist/${out}" .
+          done
+
+      - name: Checksums (SHA-256)
+        run: |
+          set -eu
+          cd dist
+          sha256sum phpflash-* > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Release notes
+        run: |
+          set -eu
+          VERSION="${GITHUB_REF_NAME}"
+          REPO="${{ github.server_url }}/${{ github.repository }}"
+          cat > notes.md <<'EOF'
+          `phpflash __VERSION__` — the command-line frontend for
+          [php-esp32](https://github.com/php-baremetal/php-esp32).
+
+          ## Install (Linux)
+
+          Pick the build for your architecture (`uname -m`: `x86_64` → amd64, `aarch64` → arm64).
+          The URL below always points at the **latest** release:
+
+          ```sh
+          BASE=__REPO__/releases/latest/download
+          # amd64 (for arm64, replace "amd64" with "arm64" below)
+          curl -LO "$BASE/phpflash-linux-amd64"
+          curl -LO "$BASE/SHA256SUMS"
+
+          sha256sum --ignore-missing -c SHA256SUMS        # verify the download
+
+          chmod +x phpflash-linux-amd64
+          sudo mv phpflash-linux-amd64 /usr/local/bin/phpflash
+          phpflash --version
+          ```
+
+          To pin a specific version instead, replace `latest/download` with
+          `download/__VERSION__`.
+
+          ## Update
+
+          Re-run the install steps above (they always fetch the latest release).
+
+          ## Checksums
+
+          The `SHA256SUMS` file attached to this release lists the SHA-256 of every binary; the
+          `sha256sum -c` step above verifies your download against it.
+          EOF
+          sed -i "s|__VERSION__|${VERSION}|g; s|__REPO__|${REPO}|g" notes.md
+          cat notes.md
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "phpflash ${{ github.ref_name }}"
+          body_path: notes.md
+          files: |
+            dist/phpflash-*
+            dist/SHA256SUMS

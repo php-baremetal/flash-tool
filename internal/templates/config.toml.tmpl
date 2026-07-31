@@ -1,0 +1,25 @@
+name = "{{ .Name }}"
+storage_type = "{{ .StorageType }}"   # where the PHP source lives
+type = "{{ .Type }}"                  # execution model
+
+[board]
+target = "{{ .Board.Target }}"
+port   = "{{ .Board.Port }}"          # empty = autodetect at flash time
+
+[esp-idf]
+path    = "{{ .EspIdf.Path }}"
+version = "{{ .EspIdf.Version }}"
+
+[php-esp32]
+path    = "{{ .PhpEsp32.Path }}"
+version = "{{ .PhpEsp32.Version }}"
+{{ range $key, $ext := .Extensions }}
+[extensions.{{ $key }}]
+enabled = {{ $ext.Enabled }}
+{{- range $sk, $sv := $ext.Settings }}
+{{ $sk }} = {{ $sv }}
+{{- end }}
+{{ end }}
+[php]
+src   = "{{ .Php.Src }}"      # PHP source folder (copied to the microSD / embedded)
+entry = "{{ .Php.Entry }}"    # entry file within src

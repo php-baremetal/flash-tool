@@ -1,0 +1,37 @@
+schema_version = 1
+[[storage_type]]
+key = "microsd"
+available = true
+description = "SD"
+[[storage_type]]
+key = "embedded"
+available = false
+description = "compiled in"
+[[project_type]]
+key = "init-loop"
+available = true
+description = "loop"
+[[project_type]]
+key = "web-server"
+available = false
+description = "http"
+[[extension]]
+key = "gpio"
+description = "GPIO"
+required_for = ["init-loop"]
+[[extension]]
+key = "date"
+description = "DateTime"
+required_for = []
+flag = "PHP_EXT_DATE=ON"
+  [[extension.setting]]
+  key = "minimal_tz"
+  description = "UTC only"
+  flag = "PHP_EXT_DATE_MINIMAL_TZ=ON"
+  default = false
+[[extension]]
+key = "sqlite"
+description = "PDO SQLite"
+required_for = []
+flag = "PHP_EXT_SQLITE=ON"
+fetch = "scripts/fetch-sqlite.sh"

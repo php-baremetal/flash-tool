@@ -1,0 +1,5 @@
+schema_version = 1
+name = "ESP32-P4-Pico"
+family = "esp32-p4"
+storage_types = ["microsd", "embedded"]
+project_types = ["init-loop", "event-driven"]

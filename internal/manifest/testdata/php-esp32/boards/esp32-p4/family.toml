@@ -1,0 +1,4 @@
+schema_version = 1
+name   = "ESP32-P4"
+target = "esp32p4"
+psram  = true
