@@ -18,6 +18,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newBuildCmd())
 	root.AddCommand(newFlashCmd())
 	root.AddCommand(newMonitorCmd())
+	root.AddCommand(newUpdateCertsCmd())
 	return root
 }
 

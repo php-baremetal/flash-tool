@@ -185,6 +185,127 @@ func TestOpenSSLConfArg(t *testing.T) {
 	}
 }
 
+func TestDNSArg(t *testing.T) {
+	// no dns -> no flag
+	if _, ok := DNSArg(&config.Config{}); ok {
+		t.Errorf("no dns should emit no flag")
+	}
+	// comma-joined (never ';', which CMake would split)
+	arg, ok := DNSArg(&config.Config{Network: config.NetworkConfig{Dns: []string{"1.1.1.1", "8.8.8.8"}}})
+	if !ok || arg != "-DPHP_NET_DNS=1.1.1.1,8.8.8.8" {
+		t.Errorf("DNSArg = %q, %v", arg, ok)
+	}
+}
+
+func tlsCfg(opts map[string]string) *config.Config {
+	return &config.Config{
+		Php: config.PhpConfig{Src: "project-src"},
+		Extensions: map[string]config.Extension{
+			"openssl": {Enabled: true, Settings: map[string]bool{"full": true, "tls": true}, Options: opts},
+		},
+	}
+}
+
+func TestTLSCAArg(t *testing.T) {
+	// tls off -> no flag
+	if _, ok := TLSCAArg(&config.Config{Extensions: map[string]config.Extension{
+		"openssl": {Enabled: true, Settings: map[string]bool{"full": true}}}}); ok {
+		t.Errorf("tls off should emit no flag")
+	}
+	// tls on, default path
+	arg, ok := TLSCAArg(tlsCfg(nil))
+	if !ok || arg != "-DPHP_TLS_CAFILE="+DefaultCAFile {
+		t.Errorf("TLSCAArg default = %q, %v", arg, ok)
+	}
+	// custom certs_path
+	arg, _ = TLSCAArg(tlsCfg(map[string]string{"certs_path": "ca/roots.pem"}))
+	if arg != "-DPHP_TLS_CAFILE=ca/roots.pem" {
+		t.Errorf("TLSCAArg custom = %q", arg)
+	}
+}
+
+func TestEnsureTLSCerts(t *testing.T) {
+	// make a fake host bundle and point certs_source at it
+	host := t.TempDir()
+	bundle := filepath.Join(host, "ca-bundle.crt")
+	if err := os.WriteFile(bundle, []byte("-----BEGIN CERTIFICATE-----\nX\n-----END CERTIFICATE-----\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// tls on -> copies bundle to project-src/certs/ca-bundle.crt
+	d1 := t.TempDir()
+	src, err := EnsureTLSCerts(tlsCfg(map[string]string{"certs_source": bundle}), d1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if src != bundle {
+		t.Errorf("source = %q, want %q", src, bundle)
+	}
+	if _, err := os.Stat(filepath.Join(d1, "project-src", "certs", "ca-bundle.crt")); err != nil {
+		t.Errorf("bundle not copied: %v", err)
+	}
+
+	// tls off -> nothing copied
+	d2 := t.TempDir()
+	off := &config.Config{Php: config.PhpConfig{Src: "project-src"},
+		Extensions: map[string]config.Extension{"openssl": {Enabled: true, Settings: map[string]bool{"full": true}}}}
+	if _, err := EnsureTLSCerts(off, d2); err != nil {
+		t.Fatal(err)
+	}
+	if entries, _ := os.ReadDir(filepath.Join(d2, "project-src")); len(entries) != 0 {
+		t.Errorf("tls off: nothing should be copied")
+	}
+
+	// existing bundle is not clobbered
+	d3 := t.TempDir()
+	dst := filepath.Join(d3, "project-src", "certs", "ca-bundle.crt")
+	os.MkdirAll(filepath.Dir(dst), 0o755)
+	os.WriteFile(dst, []byte("KEEP"), 0o644)
+	if _, err := EnsureTLSCerts(tlsCfg(map[string]string{"certs_source": bundle}), d3); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(dst); string(b) != "KEEP" {
+		t.Errorf("existing bundle was overwritten")
+	}
+}
+
+func TestRefreshTLSCerts(t *testing.T) {
+	host := t.TempDir()
+	bundle := filepath.Join(host, "roots.pem")
+	if err := os.WriteFile(bundle, []byte("NEW-ROOTS"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// overwrites an existing bundle (the whole point vs EnsureTLSCerts)
+	d1 := t.TempDir()
+	dst := filepath.Join(d1, "project-src", "certs", "ca-bundle.crt")
+	os.MkdirAll(filepath.Dir(dst), 0o755)
+	os.WriteFile(dst, []byte("OLD"), 0o644)
+	src, gotDest, err := RefreshTLSCerts(tlsCfg(map[string]string{"certs_source": bundle}), d1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if src != bundle || gotDest != dst {
+		t.Errorf("src=%q dest=%q", src, gotDest)
+	}
+	if b, _ := os.ReadFile(dst); string(b) != "NEW-ROOTS" {
+		t.Errorf("bundle not refreshed: %q", b)
+	}
+
+	// tls off -> error (not a silent no-op)
+	off := &config.Config{Php: config.PhpConfig{Src: "project-src"},
+		Extensions: map[string]config.Extension{"openssl": {Enabled: true, Settings: map[string]bool{"full": true}}}}
+	if _, _, err := RefreshTLSCerts(off, t.TempDir()); err == nil {
+		t.Errorf("tls off should error")
+	}
+
+	// absolute certs_path -> error (developer-managed)
+	abs := tlsCfg(map[string]string{"certs_path": "/sdcard/ca.pem", "certs_source": bundle})
+	if _, _, err := RefreshTLSCerts(abs, t.TempDir()); err == nil {
+		t.Errorf("absolute certs_path should error")
+	}
+}
+
 func contains(xs []string, v string) bool {
 	for _, x := range xs {
 		if x == v {

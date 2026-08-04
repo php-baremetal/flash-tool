@@ -94,6 +94,19 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 		if arg, ok := build.OpenSSLConfArg(cfg); ok {
 			dargs = append(dargs, arg)
 		}
+		// A TLS-client project ships the host's root CAs so the device can verify HTTPS peers.
+		if src, err := build.EnsureTLSCerts(cfg, wd); err != nil {
+			return nil, fmt.Errorf("CA bundle: %w", err)
+		} else if src != "" {
+			fmt.Fprintf(os.Stderr, "==> copied root CAs from %s\n", src)
+		}
+		if arg, ok := build.TLSCAArg(cfg); ok {
+			dargs = append(dargs, arg)
+		}
+		// Static DNS servers ([network] dns), if any.
+		if arg, ok := build.DNSArg(cfg); ok {
+			dargs = append(dargs, arg)
+		}
 	}
 	return &buildContext{
 		phpDir:    phpDir,

@@ -63,6 +63,44 @@ func TestLoadNoLocalFile(t *testing.T) {
 	}
 }
 
+func TestLoadNetworkAndTLSOptions(t *testing.T) {
+	// The [network] dns array and the openssl string options (config_path/certs_path/certs_source)
+	// plus the bool settings must all parse from real TOML.
+	dir := t.TempDir()
+	base := `name = "x"
+storage_type = "embedded"
+type = "init-loop"
+[board]
+target = "esp32-p4-eth"
+[network]
+dns = ["1.1.1.1", "8.8.8.8"]
+[extensions.openssl]
+enabled = true
+full = true
+tls = true
+certs_path = "certs/roots.pem"
+certs_source = "/etc/ssl/certs/ca-certificates.crt"
+`
+	path := filepath.Join(dir, FileName)
+	if err := os.WriteFile(path, []byte(base), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Network.Dns) != 2 || c.Network.Dns[0] != "1.1.1.1" || c.Network.Dns[1] != "8.8.8.8" {
+		t.Errorf("dns = %v", c.Network.Dns)
+	}
+	ext := c.Extensions["openssl"]
+	if !ext.Enabled || !ext.Settings["full"] || !ext.Settings["tls"] {
+		t.Errorf("openssl bool settings = %+v", ext.Settings)
+	}
+	if ext.Options["certs_path"] != "certs/roots.pem" || ext.Options["certs_source"] != "/etc/ssl/certs/ca-certificates.crt" {
+		t.Errorf("openssl string options = %+v", ext.Options)
+	}
+}
+
 func TestLoadLocalOverride(t *testing.T) {
 	dir := t.TempDir()
 	base := "name = \"x\"\nstorage_type = \"microsd\"\ntype = \"init-loop\"\n" +

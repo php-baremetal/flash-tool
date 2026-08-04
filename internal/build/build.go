@@ -192,6 +192,149 @@ func OpenSSLConfArg(cfg *config.Config) (string, bool) {
 	return "-DPHP_OPENSSL_CONF=" + conf, true
 }
 
+// DefaultCAFile is where the TLS client's CA bundle ships, relative to the PHP source folder,
+// unless [extensions.openssl] certs_path overrides it.
+const DefaultCAFile = "certs/ca-bundle.crt"
+
+// tlsEnabled reports whether the project builds the TLS client (full openssl + the tls setting).
+func tlsEnabled(cfg *config.Config) bool {
+	ext, ok := cfg.Extensions["openssl"]
+	return ok && ext.Enabled && ext.Settings["full"] && ext.Settings["tls"]
+}
+
+// caFilePath is the CA bundle location relative to the source folder (certs_path or the default).
+func caFilePath(cfg *config.Config) string {
+	if p := cfg.Extensions["openssl"].Options["certs_path"]; p != "" {
+		return p
+	}
+	return DefaultCAFile
+}
+
+// DNSArg returns -DPHP_NET_DNS with the static DNS servers ([network] dns) comma-joined for the
+// firmware, or false when none are configured (DHCP-provided DNS then stands). Comma, not ';':
+// CMake treats ';' as a list separator and would split the define.
+func DNSArg(cfg *config.Config) (string, bool) {
+	if len(cfg.Network.Dns) == 0 {
+		return "", false
+	}
+	return "-DPHP_NET_DNS=" + strings.Join(cfg.Network.Dns, ","), true
+}
+
+// TLSCAArg returns -DPHP_TLS_CAFILE with the CA bundle path, when the project builds the TLS
+// client. main.c sets $PHP_TLS_CAFILE from it so the transport verifies peers.
+func TLSCAArg(cfg *config.Config) (string, bool) {
+	if !tlsEnabled(cfg) {
+		return "", false
+	}
+	return "-DPHP_TLS_CAFILE=" + caFilePath(cfg), true
+}
+
+// hostCABundles are the usual system trust-store locations, tried in order when the project
+// doesn't set certs_source explicitly (Fedora/RHEL first, then Debian/Ubuntu, then others).
+var hostCABundles = []string{
+	"/etc/pki/tls/certs/ca-bundle.crt",
+	"/etc/ssl/certs/ca-certificates.crt",
+	"/etc/ssl/certs/ca-bundle.crt",
+	"/etc/ssl/cert.pem",
+}
+
+// caBundleDest returns the absolute path the CA bundle ships to (caFilePath resolved against the
+// project's source folder). ok is false when certs_path is absolute -- an on-device path the
+// developer manages, which phpflash neither writes nor refreshes.
+func caBundleDest(cfg *config.Config, projectDir string) (dest string, ok bool) {
+	rel := caFilePath(cfg)
+	if filepath.IsAbs(rel) {
+		return "", false
+	}
+	src := cfg.Php.Src
+	if src == "" {
+		src = "project-src"
+	}
+	base := src
+	if !filepath.IsAbs(base) {
+		base = filepath.Join(projectDir, src)
+	}
+	return filepath.Join(base, rel), true
+}
+
+// resolveCABundleSource picks the host CA bundle to copy: [extensions.openssl] certs_source, or the
+// first system trust store found. Errors when none exists (so the caller can tell the user).
+func resolveCABundleSource(cfg *config.Config) (string, error) {
+	if s := cfg.Extensions["openssl"].Options["certs_source"]; s != "" {
+		if _, err := os.Stat(s); err != nil {
+			return "", fmt.Errorf("certs_source %s: %w", s, err)
+		}
+		return s, nil
+	}
+	for _, cand := range hostCABundles {
+		if _, err := os.Stat(cand); err == nil {
+			return cand, nil
+		}
+	}
+	return "", fmt.Errorf("no CA bundle found on this host; set [extensions.openssl] certs_source")
+}
+
+// copyBundle reads source and writes it to dest (0644), creating dest's directory. It removes any
+// existing dest first: host trust stores are often read-only (0444), and copying one in would make
+// the shipped bundle read-only too, so a later overwrite (update-certs) would fail on the truncate.
+// Removing needs only a writable directory, so this refreshes a read-only bundle cleanly.
+func copyBundle(source, dest string) error {
+	data, err := os.ReadFile(source)
+	if err != nil {
+		return fmt.Errorf("read CA bundle %s: %w", source, err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return err
+	}
+	_ = os.Remove(dest)
+	return os.WriteFile(dest, data, 0o644)
+}
+
+// EnsureTLSCerts copies the host's root-CA bundle into the project's source folder (at caFilePath)
+// so it ships to the device, when the project builds the TLS client. No-op when TLS isn't built or
+// certs_path is absolute; it never overwrites an existing bundle (use `phpflash update-certs`, or
+// RefreshTLSCerts, to refresh). Returns the source copied from, or "" if nothing was copied.
+func EnsureTLSCerts(cfg *config.Config, projectDir string) (string, error) {
+	if !tlsEnabled(cfg) {
+		return "", nil
+	}
+	dest, ok := caBundleDest(cfg, projectDir)
+	if !ok {
+		return "", nil // absolute on-device path -- developer-managed
+	}
+	if _, err := os.Stat(dest); err == nil {
+		return "", nil // already shipped -- don't clobber
+	}
+	source, err := resolveCABundleSource(cfg)
+	if err != nil {
+		return "", err
+	}
+	return source, copyBundle(source, dest)
+}
+
+// RefreshTLSCerts (re)copies the host's root-CA bundle into the project at certs_path, OVERWRITING
+// any existing bundle -- this is what `phpflash update-certs` runs to pick up new/renewed roots
+// from the host trust store. It errors (rather than silently no-op'ing) when the project doesn't
+// build the TLS client or certs_path is an absolute on-device path. Returns (source, dest).
+func RefreshTLSCerts(cfg *config.Config, projectDir string) (source, dest string, err error) {
+	if !tlsEnabled(cfg) {
+		return "", "", fmt.Errorf("this project doesn't build the TLS client " +
+			"([extensions.openssl] full + tls); there are no certificates to update")
+	}
+	dest, ok := caBundleDest(cfg, projectDir)
+	if !ok {
+		return "", "", fmt.Errorf("certs_path is an absolute on-device path; phpflash can't manage it -- update it yourself")
+	}
+	source, err = resolveCABundleSource(cfg)
+	if err != nil {
+		return "", "", err
+	}
+	if err := copyBundle(source, dest); err != nil {
+		return "", "", err
+	}
+	return source, dest, nil
+}
+
 // compiledDir is where the full ESP-IDF build tree lives, under the project's build/.
 func compiledDir(buildDir string) string { return filepath.Join(buildDir, "compiled") }
 

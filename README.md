@@ -144,6 +144,19 @@ disturb an unrelated device.
 
 Opens the serial monitor (`idf.py monitor`).
 
+### `phpflash update-certs`
+
+Refreshes the TLS **CA bundle** shipped with the project. Projects that build the full openssl with
+the `tls` setting verify HTTPS peers against a root-CA bundle copied from the host into the source
+folder at `certs_path` (default `certs/ca-bundle.crt`). `phpflash build` writes that bundle once but
+never overwrites it, so run `update-certs` to refresh it — re-copying the host trust store
+(`[extensions.openssl] certs_source`, or the auto-detected system store) into `certs_path`,
+overwriting the old bundle. Errors if the project doesn't build the TLS client.
+
+```sh
+phpflash update-certs      # e.g. after your host's ca-certificates package updates
+```
+
 ## The project config: `php-esp32.config.toml`
 
 Written by `init`, read by the other commands.

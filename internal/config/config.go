@@ -24,6 +24,13 @@ type Config struct {
 	Storage     StorageConfig        `toml:"storage"`
 	Extensions  map[string]Extension `toml:"extensions"`
 	Php         PhpConfig            `toml:"php"`
+	Network     NetworkConfig        `toml:"network"`
+}
+
+// NetworkConfig holds outbound-networking options for boards that have a network. `dns` is an
+// optional list of static DNS servers the firmware applies after DHCP (empty = use DHCP's).
+type NetworkConfig struct {
+	Dns []string `toml:"dns"`
 }
 
 // StorageConfig holds options for the chosen storage_type. `microsd` matters only for an
