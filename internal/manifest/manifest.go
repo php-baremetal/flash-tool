@@ -51,6 +51,32 @@ type Board struct {
 	Family       string   `toml:"family"`
 	StorageTypes []string `toml:"storage_types"`
 	ProjectTypes []string `toml:"project_types"`
+	Network      string   `toml:"network"` // "ethernet" | "wifi" | "" (none); a board-level peripheral
+}
+
+// HasMicroSD reports whether the board carries a microSD slot (declared via storage_types).
+func (b Board) HasMicroSD() bool {
+	for _, s := range b.StorageTypes {
+		if s == "microsd" {
+			return true
+		}
+	}
+	return false
+}
+
+// NetworkKind returns the board's network interface: the explicit `network` field if set, else
+// inferred ("present" if it offers the web-server project type, "none" otherwise). It's a board
+// property (external PHY / radio / SD slot), not something the chip can be probed for.
+func (b Board) NetworkKind() string {
+	if b.Network != "" {
+		return b.Network
+	}
+	for _, p := range b.ProjectTypes {
+		if p == "web-server" {
+			return "present"
+		}
+	}
+	return "none"
 }
 
 func decode(path string, v interface{}) error {

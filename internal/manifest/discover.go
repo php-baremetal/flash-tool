@@ -14,10 +14,13 @@ type Family struct {
 	Target string `toml:"target"`
 }
 
-// BoardInfo is the short identity of a board, for listing/selection.
+// BoardInfo is the short identity of a board, for listing/selection, plus the board-level
+// peripherals a chip probe can't see (network interface, microSD slot).
 type BoardInfo struct {
-	Key  string // the directory name, e.g. "esp32-p4-pico"
-	Name string
+	Key     string // the directory name, e.g. "esp32-p4-pico"
+	Name    string
+	Network string // "ethernet" | "wifi" | "present" | "none"
+	MicroSD bool
 }
 
 // Families lists the chip families available in an installed php-esp32
@@ -47,7 +50,12 @@ func BoardsIn(phpEsp32Dir, family string) ([]BoardInfo, error) {
 		if _, err := toml.DecodeFile(bt, &b); err != nil {
 			return nil, err
 		}
-		out = append(out, BoardInfo{Key: filepath.Base(filepath.Dir(bt)), Name: b.Name})
+		out = append(out, BoardInfo{
+			Key:     filepath.Base(filepath.Dir(bt)),
+			Name:    b.Name,
+			Network: b.NetworkKind(),
+			MicroSD: b.HasMicroSD(),
+		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
 	return out, nil
