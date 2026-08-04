@@ -18,6 +18,7 @@ type Repo struct {
 type Mode struct {
 	Key         string `toml:"key"`
 	Available   bool   `toml:"available"`
+	Flag        string `toml:"flag"` // build define for this mode, e.g. "PHP_PROJECT_WEB_SERVER=ON" (project types only)
 	Description string `toml:"description"`
 }
 

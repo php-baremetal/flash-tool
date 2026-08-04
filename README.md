@@ -123,6 +123,10 @@ For an `embedded` project (`storage_type = "embedded"`), the build also passes
 (`storage.bin`) that `flash` writes into the chip — the board then runs without a card. A
 `microsd` project embeds nothing; you copy `project-src/` to the card yourself.
 
+The build also passes `-DPHP_STORAGE_MICROSD=ON/OFF`, derived from the project: on for a `microsd`
+project, off for an `embedded` one unless it opts in with `[storage] microsd = true`. Off, the
+firmware doesn't compile the SD drivers or mount a card (a leaner, self-contained image).
+
 The build is shown as phases with a compile progress bar. If it fails, the full ESP-IDF output
 is printed so you can see the real error.
 
@@ -162,6 +166,12 @@ version = "v5.5.5"            # git ref
 path    = ""
 version = ""                  # git ref (branch/tag); empty = default branch
 
+# Only for storage_type = "embedded": also mount a microSD for writable data. Off by default,
+# so an embedded firmware is self-contained (and doesn't compile the SD drivers, ~51 KB smaller).
+# A "microsd" project always has the card, so this table doesn't apply to it.
+[storage]
+microsd = false
+
 # One table per enabled extension, with `enabled` plus any settings it declares.
 [extensions.sqlite]
 enabled = true
@@ -173,6 +183,21 @@ onig    = true                # a setting of the mbstring extension
 [php]
 src   = "project-src"         # the PHP source folder (copied to the SD / embedded)
 entry = "index.php"           # entry file within src
+```
+
+### Local overrides: `php-esp32.config.local.toml`
+
+If a `php-esp32.config.local.toml` sits next to the config, every command overlays it on top of
+`php-esp32.config.toml`: keys it sets win, everything else keeps the committed value. It's the
+place for machine-specific tweaks — a serial port, a toolchain path — you don't want in the
+shared config. It's optional (nothing breaks without it), `init` never creates it, and the
+scaffolded `.gitignore` already lists it, so it stays out of version control. For example, to
+pin the port on your machine only:
+
+```toml
+# php-esp32.config.local.toml
+[board]
+port = "/dev/ttyACM0"
 ```
 
 ### Path and version resolution

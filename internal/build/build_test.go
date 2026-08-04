@@ -38,6 +38,7 @@ func TestArgsDeterministic(t *testing.T) {
 	want := []string{
 		"-DBOARD=esp32-p4-pico", "-DPHP_VERSION=8.3.32",
 		"-DPHP_EXT_DATE=OFF", "-DPHP_EXT_DATE_MINIMAL_TZ=OFF", "-DPHP_EXT_SQLITE=ON",
+		"-DPHP_STORAGE_MICROSD=ON",
 	}
 	if !reflect.DeepEqual(dargs, want) {
 		t.Errorf("dargs = %v\nwant %v", dargs, want)
@@ -45,6 +46,152 @@ func TestArgsDeterministic(t *testing.T) {
 	if !reflect.DeepEqual(fetches, []string{"scripts/fetch-sqlite.sh"}) {
 		t.Errorf("fetches = %v", fetches)
 	}
+}
+
+func TestArgsProjectTypeFlag(t *testing.T) {
+	m := &manifest.Manifest{
+		ProjectTypes: []manifest.Mode{
+			{Key: "init-loop", Available: true},
+			{Key: "web-server", Available: true, Flag: "PHP_PROJECT_WEB_SERVER=ON"},
+		},
+		Extensions: []manifest.Extension{},
+	}
+	// web-server selected -> flag ON
+	ws := &config.Config{Type: "web-server", Board: config.BoardConfig{Target: "esp32-p4-eth"}}
+	dargs, _, err := Args(ws, m, "8.3.32")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !contains(dargs, "-DPHP_PROJECT_WEB_SERVER=ON") {
+		t.Errorf("web-server: want PHP_PROJECT_WEB_SERVER=ON, got %v", dargs)
+	}
+	// init-loop selected -> the same flag explicitly OFF (deterministic)
+	il := &config.Config{Type: "init-loop", Board: config.BoardConfig{Target: "esp32-p4-pico"}}
+	dargs, _, _ = Args(il, m, "8.3.32")
+	if !contains(dargs, "-DPHP_PROJECT_WEB_SERVER=OFF") {
+		t.Errorf("init-loop: want PHP_PROJECT_WEB_SERVER=OFF, got %v", dargs)
+	}
+}
+
+func TestArgsMicrosdFlag(t *testing.T) {
+	m := &manifest.Manifest{
+		ProjectTypes: []manifest.Mode{{Key: "init-loop", Available: true}},
+		Extensions:   []manifest.Extension{},
+	}
+	cases := []struct {
+		name    string
+		cfg     *config.Config
+		wantOn  bool
+	}{
+		{"microsd type -> ON", &config.Config{Type: "init-loop", StorageType: "microsd"}, true},
+		{"embedded default -> OFF", &config.Config{Type: "init-loop", StorageType: "embedded"}, false},
+		{"embedded opt-in -> ON", &config.Config{Type: "init-loop", StorageType: "embedded", Storage: config.StorageConfig{Microsd: true}}, true},
+		{"unset -> ON (safe default)", &config.Config{Type: "init-loop"}, true},
+	}
+	for _, c := range cases {
+		dargs, _, err := Args(c.cfg, m, "8.3.32")
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		want := "-DPHP_STORAGE_MICROSD=OFF"
+		if c.wantOn {
+			want = "-DPHP_STORAGE_MICROSD=ON"
+		}
+		if !contains(dargs, want) {
+			t.Errorf("%s: want %q in %v", c.name, want, dargs)
+		}
+	}
+}
+
+func TestEnsureOpenSSLConf(t *testing.T) {
+	base := &config.Config{Php: config.PhpConfig{Src: "project-src"}}
+	full := func(extra map[string]bool) *config.Config {
+		s := map[string]bool{"full": true}
+		for k, v := range extra {
+			s[k] = v
+		}
+		c := *base
+		c.Extensions = map[string]config.Extension{"openssl": {Enabled: true, Settings: s}}
+		return &c
+	}
+	cnf := func(dir string) string { return filepath.Join(dir, "project-src", "openssl.cnf") }
+
+	// full openssl -> writes openssl.cnf
+	d1 := t.TempDir()
+	if err := EnsureOpenSSLConf(full(nil), d1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(cnf(d1)); err != nil {
+		t.Errorf("full: openssl.cnf not written: %v", err)
+	}
+
+	// full + no_load_config -> no file
+	d2 := t.TempDir()
+	_ = EnsureOpenSSLConf(full(map[string]bool{"no_load_config": true}), d2)
+	if _, err := os.Stat(cnf(d2)); err == nil {
+		t.Errorf("no_load_config: openssl.cnf should not be written")
+	}
+
+	// subset (no full) -> no file
+	d3 := t.TempDir()
+	sub := *base
+	sub.Extensions = map[string]config.Extension{"openssl": {Enabled: true}}
+	_ = EnsureOpenSSLConf(&sub, d3)
+	if _, err := os.Stat(cnf(d3)); err == nil {
+		t.Errorf("subset: openssl.cnf should not be written")
+	}
+
+	// custom relative config_path -> file written at that path under project-src
+	d4 := t.TempDir()
+	c4 := *base
+	c4.Extensions = map[string]config.Extension{"openssl": {Enabled: true,
+		Settings: map[string]bool{"full": true}, Options: map[string]string{"config_path": "etc/ssl.cnf"}}}
+	if err := EnsureOpenSSLConf(&c4, d4); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(d4, "project-src", "etc", "ssl.cnf")); err != nil {
+		t.Errorf("custom config_path: file not written: %v", err)
+	}
+
+	// absolute config_path -> developer-managed, nothing written
+	d5 := t.TempDir()
+	c5 := *base
+	c5.Extensions = map[string]config.Extension{"openssl": {Enabled: true,
+		Settings: map[string]bool{"full": true}, Options: map[string]string{"config_path": "/sdcard/openssl.cnf"}}}
+	_ = EnsureOpenSSLConf(&c5, d5)
+	if entries, _ := os.ReadDir(filepath.Join(d5, "project-src")); len(entries) != 0 {
+		t.Errorf("absolute config_path: nothing should be written under project-src")
+	}
+}
+
+func TestOpenSSLConfArg(t *testing.T) {
+	mk := func(opts map[string]string, full bool) *config.Config {
+		return &config.Config{Extensions: map[string]config.Extension{
+			"openssl": {Enabled: true, Settings: map[string]bool{"full": full}, Options: opts},
+		}}
+	}
+	// default path -> no flag (firmware default applies)
+	if _, ok := OpenSSLConfArg(mk(nil, true)); ok {
+		t.Errorf("default config_path should emit no flag")
+	}
+	// custom path -> flag
+	arg, ok := OpenSSLConfArg(mk(map[string]string{"config_path": "etc/ssl.cnf"}, true))
+	if !ok || arg != "-DPHP_OPENSSL_CONF=etc/ssl.cnf" {
+		t.Errorf("OpenSSLConfArg = %q, %v", arg, ok)
+	}
+	// subset (not full) -> no flag even with a path set
+	if _, ok := OpenSSLConfArg(mk(map[string]string{"config_path": "etc/ssl.cnf"}, false)); ok {
+		t.Errorf("subset should emit no flag")
+	}
+}
+
+func contains(xs []string, v string) bool {
+	for _, x := range xs {
+		if x == v {
+			return true
+		}
+	}
+	return false
 }
 
 func TestEmbedArg(t *testing.T) {

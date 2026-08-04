@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -42,5 +43,53 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	}
 	if got.Php.Src != "project-src" || got.Php.Entry != "index.php" {
 		t.Errorf("php = %+v", got.Php)
+	}
+}
+
+func TestLoadNoLocalFile(t *testing.T) {
+	// With no *.local.toml present, Load returns just the base config.
+	dir := t.TempDir()
+	base := "name = \"x\"\nstorage_type = \"microsd\"\ntype = \"init-loop\"\n[board]\ntarget = \"esp32-p4-pico\"\nport = \"/dev/ttyACM0\"\n"
+	path := filepath.Join(dir, FileName)
+	if err := os.WriteFile(path, []byte(base), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Board.Port != "/dev/ttyACM0" || c.Board.Target != "esp32-p4-pico" {
+		t.Errorf("base not loaded: %+v", c.Board)
+	}
+}
+
+func TestLoadLocalOverride(t *testing.T) {
+	dir := t.TempDir()
+	base := "name = \"x\"\nstorage_type = \"microsd\"\ntype = \"init-loop\"\n" +
+		"[board]\ntarget = \"esp32-p4-pico\"\nport = \"\"\n" +
+		"[esp-idf]\npath = \"/base/idf\"\n"
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(base), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Local overrides only the serial port; everything else must stay from the base.
+	local := "[board]\nport = \"/dev/ttyACM1\"\n"
+	if err := os.WriteFile(filepath.Join(dir, LocalFileName), []byte(local), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(filepath.Join(dir, FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Board.Port != "/dev/ttyACM1" {
+		t.Errorf("local override not applied: port = %q", c.Board.Port)
+	}
+	if c.Board.Target != "esp32-p4-pico" {
+		t.Errorf("base value clobbered: target = %q", c.Board.Target)
+	}
+	if c.EspIdf.Path != "/base/idf" {
+		t.Errorf("unrelated base value lost: esp-idf.path = %q", c.EspIdf.Path)
+	}
+	if c.Name != "x" || c.StorageType != "microsd" {
+		t.Errorf("base scalars lost: %+v", c)
 	}
 }

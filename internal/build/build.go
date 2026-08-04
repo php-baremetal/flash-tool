@@ -74,6 +74,27 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 		}
 		dargs = append(dargs, "-D"+n+"="+state)
 	}
+	// Project-type flags (e.g. web-server -> PHP_PROJECT_WEB_SERVER). Pass every one the
+	// manifest declares explicitly ON/OFF -- ON for the selected type -- so a build dir that
+	// switched types doesn't keep a stale value in its CMake cache.
+	for _, pt := range m.ProjectTypes {
+		if pt.Flag == "" {
+			continue
+		}
+		state := "OFF"
+		if pt.Key == cfg.Type {
+			state = "ON"
+		}
+		dargs = append(dargs, "-D"+flagName(pt.Flag)+"="+state)
+	}
+	// microSD support: on unless this is an `embedded` project that didn't opt into a card.
+	// A `microsd` project always has the card; embedded defaults to no card (SD drivers dropped).
+	microsd := cfg.StorageType != "embedded" || cfg.Storage.Microsd
+	msdState := "OFF"
+	if microsd {
+		msdState = "ON"
+	}
+	dargs = append(dargs, "-DPHP_STORAGE_MICROSD="+msdState)
 	return dargs, eff.Fetches, nil
 }
 
@@ -94,6 +115,81 @@ func EmbedArg(cfg *config.Config, projectDir string) (string, bool) {
 		src = filepath.Join(projectDir, src)
 	}
 	return "-DPHP_EMBED_SRC=" + src, true
+}
+
+// openSSLConf is the minimal openssl.cnf the full openssl build reads at startup (it activates
+// the default provider). OpenSSL 3.0 on the chip needs a readable config to fully bring its
+// providers up; the firmware points OPENSSL_CONF at this file shipped next to index.php.
+const openSSLConf = `# Minimal OpenSSL config for php-esp32's full openssl build. The firmware sets OPENSSL_CONF to
+# this file (shipped alongside index.php); OpenSSL 3.0 reads it to bring up the default provider.
+openssl_conf = openssl_init
+
+[openssl_init]
+providers = provider_sect
+
+[provider_sect]
+default = default_sect
+
+[default_sect]
+activate = 1
+`
+
+// openSSLConfName is the config's file name/path for the full openssl build, from
+// [extensions.openssl] config_path (default "openssl.cnf"). A relative value is taken against the
+// PHP source folder (so it ships with the source); an absolute one is the on-device path verbatim.
+func openSSLConfName(ext config.Extension) string {
+	if p := ext.Options["config_path"]; p != "" {
+		return p
+	}
+	return "openssl.cnf"
+}
+
+// EnsureOpenSSLConf writes the openssl.cnf into the project's PHP source folder when the project
+// builds the full openssl WITHOUT the no_load_config setting -- so the file ships to the card (or
+// the embedded image) with the source, where the firmware reads it. The name/path comes from
+// config_path (default "openssl.cnf"). No-op when openssl isn't full/enabled, when no_load_config
+// is set, or when config_path is absolute (an on-device path the developer manages themselves);
+// it never overwrites an existing file.
+func EnsureOpenSSLConf(cfg *config.Config, projectDir string) error {
+	ext, ok := cfg.Extensions["openssl"]
+	if !ok || !ext.Enabled || !ext.Settings["full"] || ext.Settings["no_load_config"] {
+		return nil
+	}
+	conf := openSSLConfName(ext)
+	if filepath.IsAbs(conf) {
+		return nil // an absolute on-device path -- the developer ships the file themselves
+	}
+	src := cfg.Php.Src
+	if src == "" {
+		src = "project-src"
+	}
+	base := src
+	if !filepath.IsAbs(base) {
+		base = filepath.Join(projectDir, src)
+	}
+	path := filepath.Join(base, conf)
+	if _, err := os.Stat(path); err == nil {
+		return nil // already present -- don't clobber the developer's config
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(openSSLConf), 0o644)
+}
+
+// OpenSSLConfArg returns the -DPHP_OPENSSL_CONF build argument telling the firmware where to read
+// the openssl.cnf, when the project sets a non-default config_path for a full openssl build. The
+// bool is false when the firmware's built-in default ("openssl.cnf") is fine, so no flag is needed.
+func OpenSSLConfArg(cfg *config.Config) (string, bool) {
+	ext, ok := cfg.Extensions["openssl"]
+	if !ok || !ext.Enabled || !ext.Settings["full"] {
+		return "", false
+	}
+	conf := ext.Options["config_path"]
+	if conf == "" {
+		return "", false // firmware default applies
+	}
+	return "-DPHP_OPENSSL_CONF=" + conf, true
 }
 
 // compiledDir is where the full ESP-IDF build tree lives, under the project's build/.

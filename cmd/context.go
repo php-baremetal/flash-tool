@@ -86,6 +86,14 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 		if arg, ok := build.EmbedArg(cfg, wd); ok {
 			dargs = append(dargs, arg)
 		}
+		// A full-openssl project needs an openssl.cnf shipped with its source; create it.
+		if err := build.EnsureOpenSSLConf(cfg, wd); err != nil {
+			return nil, fmt.Errorf("openssl.cnf: %w", err)
+		}
+		// If it set a custom config_path, tell the firmware where to read it.
+		if arg, ok := build.OpenSSLConfArg(cfg); ok {
+			dargs = append(dargs, arg)
+		}
 	}
 	return &buildContext{
 		phpDir:    phpDir,
