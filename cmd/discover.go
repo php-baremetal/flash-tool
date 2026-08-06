@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"phpflash/internal/config"
 	"phpflash/internal/discover"
 	"phpflash/internal/manifest"
 	"phpflash/internal/platform"
@@ -132,6 +133,17 @@ func newDiscoverCmd() *cobra.Command {
 			}
 			fmt.Fprintln(out, "Note: `network`/`microSD` above are what each board *model* carries (from its")
 			fmt.Fprintln(out, "board.toml) -- the chip alone can't tell the models apart (same silicon).")
+
+			// A ready-to-paste snippet so wiring a project to this board is copyable, not retyped.
+			if len(boards) > 0 {
+				fmt.Fprintf(out, "\nTo target one from a project, set in %s:\n", config.FileName)
+				fmt.Fprintln(out, "  [board]")
+				if len(boards) == 1 {
+					fmt.Fprintf(out, "  target = %q\n", boards[0].Key)
+				} else {
+					fmt.Fprintf(out, "  target = %q   # pick the model matching yours from the list above\n", boards[0].Key)
+				}
+			}
 
 			if !all {
 				fmt.Fprintln(out, "\nTo actually probe THIS board's peripherals (Ethernet, microSD) -- the way to")

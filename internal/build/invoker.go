@@ -35,6 +35,20 @@ func (e ExecInvoker) Fetch(script string) error {
 	return c.Run()
 }
 
+// Parttool runs ESP-IDF's parttool.py (partition read/write/erase) in the same env as idf.py.
+func (e ExecInvoker) Parttool(args ...string) error {
+	quoted := make([]string, len(args))
+	for i, a := range args {
+		quoted[i] = shquote(a)
+	}
+	script := ". " + shquote(filepath.Join(e.IdfPath, "export.sh")) +
+		" >/dev/null 2>&1 && parttool.py " + strings.Join(quoted, " ")
+	c := exec.Command("bash", "-c", script)
+	c.Dir = e.PhpEsp32Dir
+	c.Stdin, c.Stdout, c.Stderr = os.Stdin, e.out(), e.out()
+	return c.Run()
+}
+
 func (e ExecInvoker) IDF(args ...string) error {
 	quoted := make([]string, len(args))
 	for i, a := range args {

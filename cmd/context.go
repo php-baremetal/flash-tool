@@ -52,13 +52,16 @@ func resolveDirs(idfFlag, phpFlag string, cfg *config.Config) (idfPath, phpDir s
 // buildContext holds everything build/flash need. The Invoker is constructed by each
 // command so it can choose the output sink (a progress bar for build, raw for flash).
 type buildContext struct {
-	phpDir    string
-	idfPath   string
-	dargs     []string
-	fetches   []string
-	port      string
-	buildDir  string
-	sdkconfig string
+	phpDir      string
+	idfPath     string
+	dargs       []string
+	fetches     []string
+	port        string
+	buildDir    string
+	sdkconfig   string
+	storageType string
+	board       string // the configured board key, e.g. "esp32-s3-eth"
+	idfTarget   string // the board family's ESP-IDF target, e.g. "esp32s3" ("" if unresolved)
 }
 
 func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
@@ -79,6 +82,13 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 	dargs, fetches, err := build.Args(cfg, m, repo.DefaultVersion)
 	if err != nil {
 		return nil, err
+	}
+	// Pin the ESP-IDF target from the board's family. Without it, idf.py "guesses" the target from
+	// any stray in-source sdkconfig -- which silently builds the wrong architecture when that file is
+	// left over from a different family (e.g. an esp32p4 sdkconfig while building an esp32s3 board).
+	idfTarget, _ := manifest.TargetForBoard(phpDir, cfg.Board.Target)
+	if idfTarget != "" {
+		dargs = append(dargs, "-DIDF_TARGET="+idfTarget)
 	}
 	// For an `embedded` project, build the PHP source into the firmware image. The
 	// project dir is the current working directory (where the config lives).
@@ -113,12 +123,15 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 		}
 	}
 	return &buildContext{
-		phpDir:    phpDir,
-		idfPath:   idfPath,
-		dargs:     dargs,
-		fetches:   fetches,
-		port:      cfg.Board.Port,
-		buildDir:  projectBuildDir(),
-		sdkconfig: projectSdkconfig(),
+		phpDir:      phpDir,
+		idfPath:     idfPath,
+		dargs:       dargs,
+		fetches:     fetches,
+		port:        cfg.Board.Port,
+		buildDir:    projectBuildDir(),
+		sdkconfig:   projectSdkconfig(),
+		storageType: cfg.StorageType,
+		board:       cfg.Board.Target,
+		idfTarget:   idfTarget,
 	}, nil
 }

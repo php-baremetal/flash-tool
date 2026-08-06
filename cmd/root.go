@@ -12,6 +12,10 @@ func NewRootCmd() *cobra.Command {
 		Use:     "phpflash",
 		Short:   "Create, configure and set up PHP-on-ESP32 projects",
 		Version: Version,
+		// A command that fails at runtime isn't a usage error: main already prints the error, so
+		// don't let cobra dump the flag help + a duplicate "Error:" line on top of it.
+		SilenceUsage:  true,
+		SilenceErrors: true,
 	}
 	root.AddCommand(newInitCmd())
 	root.AddCommand(newSystemSetupCmd())

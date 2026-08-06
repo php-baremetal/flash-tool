@@ -40,6 +40,24 @@ func Families(phpEsp32Dir string) ([]Family, error) {
 	return out, nil
 }
 
+// TargetForBoard returns the ESP-IDF target (from the containing family's family.toml) for a board
+// key, e.g. "esp32-s3-eth" -> "esp32s3". ok is false when no family contains that board (or its
+// family declares no target) -- the caller then leaves the target to be resolved by the build
+// itself. Used to pin -DIDF_TARGET so idf.py never guesses the target from a stray in-source
+// sdkconfig and silently builds the wrong architecture.
+func TargetForBoard(phpEsp32Dir, boardKey string) (target string, ok bool) {
+	fams, _ := Families(phpEsp32Dir)
+	for _, f := range fams {
+		boards, _ := BoardsIn(phpEsp32Dir, f.Key)
+		for _, b := range boards {
+			if b.Key == boardKey {
+				return f.Target, f.Target != ""
+			}
+		}
+	}
+	return "", false
+}
+
 // BoardsIn lists the boards under a family (boards/<family>/*/board.toml), sorted by
 // key. Empty (not an error) if none.
 func BoardsIn(phpEsp32Dir, family string) ([]BoardInfo, error) {

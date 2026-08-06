@@ -1,6 +1,7 @@
 package build
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -380,12 +381,18 @@ func TestEntryArg(t *testing.T) {
 }
 
 type fakeInvoker struct {
-	fetches []string
-	idf     [][]string
+	fetches  []string
+	idf      [][]string
+	parttool [][]string
+	partErr  error
 }
 
-func (f *fakeInvoker) Fetch(s string) error       { f.fetches = append(f.fetches, s); return nil }
-func (f *fakeInvoker) IDF(args ...string) error   { f.idf = append(f.idf, args); return nil }
+func (f *fakeInvoker) Fetch(s string) error     { f.fetches = append(f.fetches, s); return nil }
+func (f *fakeInvoker) IDF(args ...string) error { f.idf = append(f.idf, args); return nil }
+func (f *fakeInvoker) Parttool(args ...string) error {
+	f.parttool = append(f.parttool, args)
+	return f.partErr
+}
 
 func TestBuildRunsFetchesThenIDF(t *testing.T) {
 	f := &fakeInvoker{}
@@ -410,6 +417,33 @@ func TestFlashAppendsPortAndFlash(t *testing.T) {
 	want := []string{"-B", "/proj/build/compiled", "-DBOARD=x", "-p", "/dev/ttyACM0", "flash"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("flash args = %v, want %v", got, want)
+	}
+}
+
+func TestEraseStoragePartition(t *testing.T) {
+	f := &fakeInvoker{}
+	EraseStoragePartition(f, io.Discard, "/dev/ttyACM0")
+	want := []string{"--port", "/dev/ttyACM0", "erase_partition", "--partition-name", "storage"}
+	if len(f.parttool) != 1 || !reflect.DeepEqual(f.parttool[0], want) {
+		t.Errorf("parttool call = %v, want %v", f.parttool, want)
+	}
+}
+
+func TestEraseStoragePartitionNoPort(t *testing.T) {
+	f := &fakeInvoker{}
+	EraseStoragePartition(f, io.Discard, "")
+	want := []string{"erase_partition", "--partition-name", "storage"}
+	if len(f.parttool) != 1 || !reflect.DeepEqual(f.parttool[0], want) {
+		t.Errorf("parttool call = %v, want %v", f.parttool, want)
+	}
+}
+
+func TestEraseStoragePartitionErrorIsNonFatal(t *testing.T) {
+	f := &fakeInvoker{partErr: errors.New("no such partition")}
+	// Must not panic and has no error to return -- a missing storage partition is harmless.
+	EraseStoragePartition(f, io.Discard, "/dev/ttyACM0")
+	if len(f.parttool) != 1 {
+		t.Errorf("expected one parttool attempt, got %d", len(f.parttool))
 	}
 }
 

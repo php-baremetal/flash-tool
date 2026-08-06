@@ -17,8 +17,9 @@ import (
 )
 
 type Invoker interface {
-	Fetch(script string) error // run <php-esp32>/<script> (e.g. scripts/fetch-sqlite.sh)
-	IDF(args ...string) error  // run idf.py <args> in php-esp32 with the ESP-IDF env
+	Fetch(script string) error     // run <php-esp32>/<script> (e.g. scripts/fetch-sqlite.sh)
+	IDF(args ...string) error      // run idf.py <args> in php-esp32 with the ESP-IDF env
+	Parttool(args ...string) error // run parttool.py <args> in php-esp32 with the ESP-IDF env
 }
 
 func flagName(f string) string {
@@ -397,6 +398,27 @@ func Flash(inv Invoker, out io.Writer, buildDir string, dargs []string, port str
 	args = append(args, "flash")
 	fmt.Fprintln(out, "==> idf.py flash")
 	return inv.IDF(args...)
+}
+
+// EraseStoragePartition wipes the board's `storage` partition -- the read-only FAT-image slot that
+// `embedded` builds flash the PHP source into. A `microsd` project never writes that partition, so an
+// image left there by an earlier `embedded` build (of this or another project) survives a microsd
+// flash and still mounts at /app. Because the firmware prefers /app over /sdcard, the board would then
+// silently run that stale source instead of the card -- with no error. Erasing it on a microsd flash
+// guarantees the embedded mount fails and the firmware falls back to the microSD.
+//
+// It is best-effort: a board with no `storage` partition (or a device that can't be reached) is not a
+// flash failure, so an error here is reported and swallowed rather than returned.
+func EraseStoragePartition(inv Invoker, out io.Writer, port string) {
+	fmt.Fprintln(out, "==> erasing 'storage' partition (microsd project: stops a leftover embedded image from shadowing the card)")
+	args := []string{}
+	if port != "" {
+		args = append(args, "--port", port)
+	}
+	args = append(args, "erase_partition", "--partition-name", "storage")
+	if err := inv.Parttool(args...); err != nil {
+		fmt.Fprintf(out, "    note: could not erase 'storage' (harmless if the board has no such partition): %v\n", err)
+	}
 }
 
 // Monitor runs `idf.py -B <buildDir>/compiled [-p port] monitor`.

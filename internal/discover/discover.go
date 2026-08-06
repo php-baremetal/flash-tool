@@ -37,12 +37,16 @@ var (
 	reFeatures = regexp.MustCompile(`(?m)^Features: (.+)$`)
 	reCrystal  = regexp.MustCompile(`(?m)^Crystal is (.+)$`)
 	reNonAlnum = regexp.MustCompile(`[^a-z0-9]`)
+	reParen    = regexp.MustCompile(`\([^)]*\)`)
 )
 
 // TargetFromChip turns esptool's chip name into the ESP-IDF target string a family.toml uses:
 // lowercase and stripped of non-alphanumerics ("ESP32-P4" -> "esp32p4", "ESP32-S3" -> "esp32s3",
-// "ESP32" -> "esp32").
+// "ESP32" -> "esp32"). Newer esptool appends the package in parentheses ("ESP32-S3 (QFN56)"); the
+// package isn't part of the ESP-IDF target, so drop any parenthesized group first -- otherwise the
+// target would come out "esp32s3qfn56" and match no family.
 func TargetFromChip(chip string) string {
+	chip = reParen.ReplaceAllString(chip, "")
 	return reNonAlnum.ReplaceAllString(strings.ToLower(strings.TrimSpace(chip)), "")
 }
 
