@@ -44,6 +44,9 @@ type StorageConfig struct {
 type BoardConfig struct {
 	Target string `toml:"target"`
 	Port   string `toml:"port"`
+	// CPUFreqMHz overrides the CPU clock (e.g. 400 on the ESP32-P4, default 360). Empty/0 = the
+	// board default. Passed to the firmware as -DPHP_CPU_FREQ_MHZ.
+	CPUFreqMHz int `toml:"cpu_freq_mhz"`
 }
 
 type SourceConfig struct {

@@ -36,7 +36,7 @@ func TestArgsDeterministic(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{
-		"-DBOARD=esp32-p4-pico", "-DPHP_VERSION=8.3.32",
+		"-DBOARD=esp32-p4-pico", "-DPHP_VERSION=8.3.32", "-DPHP_CPU_FREQ_MHZ=",
 		"-DPHP_EXT_DATE=OFF", "-DPHP_EXT_DATE_MINIMAL_TZ=OFF", "-DPHP_EXT_SQLITE=ON",
 		"-DPHP_STORAGE_MICROSD=ON",
 	}
@@ -70,6 +70,28 @@ func TestArgsProjectTypeFlag(t *testing.T) {
 	dargs, _, _ = Args(il, m, "8.3.32")
 	if !contains(dargs, "-DPHP_PROJECT_WEB_SERVER=OFF") {
 		t.Errorf("init-loop: want PHP_PROJECT_WEB_SERVER=OFF, got %v", dargs)
+	}
+}
+
+func TestArgsCPUFreq(t *testing.T) {
+	m := &manifest.Manifest{
+		ProjectTypes: []manifest.Mode{{Key: "init-loop", Available: true}},
+		Extensions:   []manifest.Extension{},
+	}
+	// set -> -DPHP_CPU_FREQ_MHZ=400
+	set := &config.Config{Type: "init-loop", Board: config.BoardConfig{Target: "esp32-p4-eth", CPUFreqMHz: 400}}
+	dargs, _, err := Args(set, m, "8.3.32")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !contains(dargs, "-DPHP_CPU_FREQ_MHZ=400") {
+		t.Errorf("cpu_freq_mhz=400: want -DPHP_CPU_FREQ_MHZ=400, got %v", dargs)
+	}
+	// unset -> flag still emitted, empty (so a reused build dir can't keep a stale value)
+	unset := &config.Config{Type: "init-loop", Board: config.BoardConfig{Target: "esp32-p4-eth"}}
+	dargs, _, _ = Args(unset, m, "8.3.32")
+	if !contains(dargs, "-DPHP_CPU_FREQ_MHZ=") {
+		t.Errorf("unset: want empty -DPHP_CPU_FREQ_MHZ=, got %v", dargs)
 	}
 }
 
@@ -339,6 +361,21 @@ func TestEmbedArg(t *testing.T) {
 	abs := &config.Config{StorageType: "embedded", Php: config.PhpConfig{Src: "/abs/src"}}
 	if arg, _ := EmbedArg(abs, "/proj"); arg != "-DPHP_EMBED_SRC=/abs/src" {
 		t.Errorf("absolute src arg = %q", arg)
+	}
+}
+
+func TestEntryArg(t *testing.T) {
+	// default entry -> no flag
+	if _, ok := EntryArg(&config.Config{Php: config.PhpConfig{Entry: "index.php"}}); ok {
+		t.Errorf("default entry should emit no flag")
+	}
+	if _, ok := EntryArg(&config.Config{}); ok {
+		t.Errorf("empty entry should emit no flag")
+	}
+	// nested front controller (Laravel) -> flag
+	arg, ok := EntryArg(&config.Config{Php: config.PhpConfig{Entry: "public/index.php"}})
+	if !ok || arg != "-DPHP_ENTRY=public/index.php" {
+		t.Errorf("EntryArg = %q, %v", arg, ok)
 	}
 }
 

@@ -67,6 +67,13 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 	sort.Strings(sorted)
 
 	dargs = append(dargs, "-DBOARD="+cfg.Board.Target, "-DPHP_VERSION="+phpVersion)
+	// Always emit the CPU-freq flag (empty when unset) so a reused build dir can't keep a stale
+	// cached value -- same reason the extension flags below are always passed ON/OFF.
+	freq := ""
+	if cfg.Board.CPUFreqMHz > 0 {
+		freq = fmt.Sprintf("%d", cfg.Board.CPUFreqMHz)
+	}
+	dargs = append(dargs, "-DPHP_CPU_FREQ_MHZ="+freq)
 	for _, n := range sorted {
 		state := "OFF"
 		if on[n] {
@@ -115,6 +122,17 @@ func EmbedArg(cfg *config.Config, projectDir string) (string, bool) {
 		src = filepath.Join(projectDir, src)
 	}
 	return "-DPHP_EMBED_SRC=" + src, true
+}
+
+// EntryArg returns the -DPHP_ENTRY argument naming the entry script within the source ([php] entry),
+// so a framework with a nested front controller runs (Laravel: "public/index.php"). The bool is
+// false when the entry is the firmware's default ("index.php"/empty), which needs no flag.
+func EntryArg(cfg *config.Config) (string, bool) {
+	entry := cfg.Php.Entry
+	if entry == "" || entry == "index.php" {
+		return "", false
+	}
+	return "-DPHP_ENTRY=" + entry, true
 }
 
 // openSSLConf is the minimal openssl.cnf the full openssl build reads at startup (it activates
