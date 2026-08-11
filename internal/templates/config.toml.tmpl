@@ -24,5 +24,6 @@ enabled = {{ $ext.Enabled }}
 {{- end }}
 {{ end }}
 [php]
-src   = "{{ .Php.Src }}"      # PHP source folder (copied to the microSD / embedded)
-entry = "{{ .Php.Entry }}"    # entry file within src
+src     = "{{ .Php.Src }}"      # PHP source folder (copied to the microSD / embedded)
+entry   = "{{ .Php.Entry }}"    # entry file within src
+version = "{{ .Php.Version }}"   # PHP version to build (e.g. "8.5.9"); empty = the repo default

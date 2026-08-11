@@ -63,6 +63,9 @@ type Extension struct {
 type PhpConfig struct {
 	Src   string `toml:"src"`   // folder holding the PHP source (copied to the SD / embedded)
 	Entry string `toml:"entry"` // entry file within src
+	// Version pins the PHP language version to build (e.g. "8.5.9"), one of the directories under
+	// components/php/versions/. Empty = the repo default (default_version in php-esp32.toml).
+	Version string `toml:"version"`
 }
 
 // Load reads a php-esp32.config.toml, then overlays an optional sibling

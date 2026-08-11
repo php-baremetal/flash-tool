@@ -66,13 +66,16 @@ func runInit(out io.Writer, p prompt.Prompter, o initOpts) error {
 
 	boardKey := o.Board
 	storage, projType := "microsd", "init-loop"
+	phpVersion := "" // empty = follow the repo default; pinned only if the user picks a non-default one
 	exts := map[string]config.Extension{}
 
 	// Read the installed php-esp32: choose a board (family -> board), then the modes
 	// and extensions it offers. If it isn't installed, keep the flag/default board and
 	// skip these steps (the commands stay independent).
 	var m *manifest.Manifest
+	defaultVersion := ""
 	if repo, err := manifest.LoadRepo(o.PhpEsp32Dir); err == nil {
+		defaultVersion = repo.DefaultVersion
 		m, _ = manifest.LoadManifest(o.PhpEsp32Dir, repo.DefaultVersion)
 	}
 	if m != nil {
@@ -89,6 +92,13 @@ func runInit(out io.Writer, p prompt.Prompter, o initOpts) error {
 			if !o.Yes {
 				storage = pickMode(p, "Storage type", s, "microsd")
 				projType = pickMode(p, "Project type", pj, "init-loop")
+				// Offer the installed PHP versions when there's more than one. Choosing the default
+				// leaves version empty (the project follows the repo default); any other pins it.
+				if vers, _ := manifest.AvailableVersions(o.PhpEsp32Dir); len(vers) > 1 {
+					if chosen := pickVersion(p, vers, defaultVersion); chosen != defaultVersion {
+						phpVersion = chosen
+					}
+				}
 			}
 			exts = chooseExtensions(p, m, projType, o.Yes)
 		}
@@ -109,7 +119,7 @@ func runInit(out io.Writer, p prompt.Prompter, o initOpts) error {
 		Type:        projType,
 		Board:       config.BoardConfig{Target: boardKey, Port: port},
 		Extensions:  exts,
-		Php:         config.PhpConfig{Src: "project-src", Entry: "index.php"},
+		Php:         config.PhpConfig{Src: "project-src", Entry: "index.php", Version: phpVersion},
 	}
 
 	if o.Force {
@@ -207,6 +217,21 @@ func chooseExtensions(p prompt.Prompter, m *manifest.Manifest, projType string, 
 		out[e.Key] = ext
 	}
 	return out
+}
+
+func pickVersion(p prompt.Prompter, vers []string, def string) string {
+	opts := make([]prompt.Option, len(vers))
+	d := 0
+	for i, v := range vers {
+		label := v
+		if v == def {
+			label = v + " (default)"
+			d = i
+		}
+		opts[i] = prompt.Option{Label: label}
+	}
+	i, _ := p.Select("PHP version", opts, d)
+	return vers[i]
 }
 
 func pickStarter(p prompt.Prompter) string {

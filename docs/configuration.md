@@ -69,6 +69,7 @@ For a board with a network. Optional.
 |---|---|---|---|
 | `src` | string | `project-src` | The folder holding the PHP source. This is the deployable: copied to the card, or baked into the embedded image. |
 | `entry` | string | `index.php` | The entry file within `src`. A framework points this at its front controller, for example `public/index.php`. |
+| `version` | string | `""` (repo default) | The PHP language version to build, one of the directories under `components/php/versions/` (for example `8.5.9`). Empty follows `default_version` in the repo's `php-esp32.toml`. `init` offers the installed versions when there is more than one, and pins this only when you pick a non-default one. An unknown version fails the build with the list of what is installed. |
 
 ## `[extensions.<name>]`
 
@@ -191,6 +192,7 @@ tls          = true
 certs_source = "/etc/ssl/certs/ca-certificates.crt"
 
 [php]
-src   = "project-src"
-entry = "public/index.php"
+src     = "project-src"
+entry   = "public/index.php"
+version = "8.5.9"              # omit or leave empty to follow the repo default
 ```

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"phpflash/internal/build"
 	"phpflash/internal/config"
@@ -75,11 +76,20 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 	if err != nil {
 		return nil, fmt.Errorf("php-esp32 not found at %s (run `phpflash system-setup`): %w", phpDir, err)
 	}
-	m, err := manifest.LoadManifest(phpDir, repo.DefaultVersion)
+	// The PHP language version: the project's [php] version if it pins one, else the repo default.
+	phpVersion := cfg.Php.Version
+	if phpVersion == "" {
+		phpVersion = repo.DefaultVersion
+	}
+	m, err := manifest.LoadManifest(phpDir, phpVersion)
 	if err != nil {
+		if avail, e := manifest.AvailableVersions(phpDir); e == nil && len(avail) > 0 {
+			return nil, fmt.Errorf("PHP version %q is not installed in %s (available: %s)",
+				phpVersion, phpDir, strings.Join(avail, ", "))
+		}
 		return nil, err
 	}
-	dargs, fetches, err := build.Args(cfg, m, repo.DefaultVersion)
+	dargs, fetches, err := build.Args(cfg, m, phpVersion)
 	if err != nil {
 		return nil, err
 	}

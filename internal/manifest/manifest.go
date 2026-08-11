@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/BurntSushi/toml"
 )
@@ -102,6 +103,24 @@ func LoadManifest(phpEsp32Dir, version string) (*Manifest, error) {
 		return nil, err
 	}
 	return &m, nil
+}
+
+// AvailableVersions lists the PHP versions installed in the tree: the directory names under
+// components/php/versions/ (each is a self-contained version). Non-directory entries such as the
+// README are skipped. The result is sorted.
+func AvailableVersions(phpEsp32Dir string) ([]string, error) {
+	entries, err := os.ReadDir(filepath.Join(phpEsp32Dir, "components", "php", "versions"))
+	if err != nil {
+		return nil, err
+	}
+	var vers []string
+	for _, e := range entries {
+		if e.IsDir() {
+			vers = append(vers, e.Name())
+		}
+	}
+	sort.Strings(vers)
+	return vers, nil
 }
 
 func LoadBoard(phpEsp32Dir, board string) (*Board, error) {

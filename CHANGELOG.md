@@ -1,5 +1,31 @@
 # Changelog
 
+## [v0.3.0]
+
+### Added
+- **Per-project PHP version** — `[php] version` in `php-esp32.config.toml` pins the PHP language
+  version to build (for example `8.5.9`), one of the versions installed under
+  `components/php/versions/`. Empty follows `default_version` in the repo's `php-esp32.toml`, so
+  existing configs are unaffected. `phpflash init` offers the installed versions when there is more
+  than one, and records the choice only when it differs from the default. A version that isn't
+  installed fails the build up front with the list of the ones that are, instead of a late ESP-IDF
+  error.
+- **Chip/board check before flashing** — `phpflash flash` probes the connected chip and refuses to
+  write an image built for a different target (for example an ESP32-S3 image onto a P4), with a
+  message pointing at `[board].target`. `--force` skips the check, and an inconclusive probe (no board
+  yet, a busy port) never blocks — esptool remains the backstop that verifies the chip during the
+  write.
+- **`storage` partition wipe on a microSD flash** — flashing a `microsd` (non-embedded) project now
+  erases a leftover `storage` partition from an earlier embedded build, so a stale in-flash image
+  can't mount and shadow the microSD.
+
+### Changed
+- **Pinned ESP-IDF target** — the build passes `-DIDF_TARGET` derived from the board's family, so
+  `idf.py` never infers the architecture from a stray in-source `sdkconfig` (which could silently
+  build for the wrong chip when a config was left over from a different board).
+- Errors are reported as a single clean line: the root command sets `SilenceUsage`/`SilenceErrors`, so
+  a failed command no longer dumps usage or Cobra's own error trailer.
+
 ## [v0.2.0]
 
 ### Added
