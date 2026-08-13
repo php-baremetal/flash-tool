@@ -151,3 +151,22 @@ to re-flash.
 | `-y, --yes` | With `--all`, skip the confirmation prompt. |
 | `--idf-path <dir>` | ESP-IDF location (for esptool and building the probe). |
 | `--php-esp32-path <dir>` | php-esp32 location (boards list and discovery firmware). |
+
+## `ext new <name>`
+
+Scaffold a custom C extension for the project. It creates `firmware/exts/<name>/<name>.c` with a
+working skeleton -- a module entry named `<name>_module_entry` and two example functions
+(`<name>_hello()` and `<name>_add($a, $b)`) to replace with your own. `build` then compiles it into
+the firmware, and the firmware registers it so the functions are callable from PHP. The name must be
+a valid lowercase C identifier, since it becomes both the directory and the C symbol. See
+[custom-extensions.md](https://github.com/php-baremetal/php-esp32/blob/master/docs/custom-extensions.md)
+(in php-esp32) for the full contract.
+
+```sh
+phpflash ext new ssd1306
+phpflash build
+```
+
+| Flag | Meaning |
+|---|---|
+| `--force` | Overwrite an existing `firmware/exts/<name>/<name>.c`. |

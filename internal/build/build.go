@@ -125,6 +125,24 @@ func EmbedArg(cfg *config.Config, projectDir string) (string, bool) {
 	return "-DPHP_EMBED_SRC=" + src, true
 }
 
+// ProjectExtsArg returns the -DPHP_PROJECT_EXTS_DIR argument pointing at the project's
+// firmware/exts directory, so its custom C extensions are compiled into the firmware. The bool is
+// false when the directory is absent or holds no extension subdirectory. The path is absolute,
+// since ESP-IDF runs from its own build tree.
+func ProjectExtsArg(projectDir string) (string, bool) {
+	dir := filepath.Join(projectDir, "firmware", "exts")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", false
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			return "-DPHP_PROJECT_EXTS_DIR=" + dir, true
+		}
+	}
+	return "", false
+}
+
 // EntryArg returns the -DPHP_ENTRY argument naming the entry script within the source ([php] entry),
 // so a framework with a nested front controller runs (Laravel: "public/index.php"). The bool is
 // false when the entry is the firmware's default ("index.php"/empty), which needs no flag.

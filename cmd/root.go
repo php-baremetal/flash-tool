@@ -24,6 +24,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newMonitorCmd())
 	root.AddCommand(newUpdateCertsCmd())
 	root.AddCommand(newDiscoverCmd())
+	root.AddCommand(newExtCmd())
 	return root
 }
 

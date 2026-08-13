@@ -8,6 +8,9 @@ import _ "embed"
 //go:embed config.toml.tmpl
 var Config string
 
+//go:embed ext.c.tmpl
+var ExtC string
+
 //go:embed index.hello.php
 var IndexHello []byte
 

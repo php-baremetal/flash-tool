@@ -110,6 +110,10 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 		if arg, ok := build.EntryArg(cfg); ok {
 			dargs = append(dargs, arg)
 		}
+		// Custom C extensions the project ships in ./firmware/exts are compiled into the firmware.
+		if arg, ok := build.ProjectExtsArg(wd); ok {
+			dargs = append(dargs, arg)
+		}
 		// A full-openssl project needs an openssl.cnf shipped with its source; create it.
 		if err := build.EnsureOpenSSLConf(cfg, wd); err != nil {
 			return nil, fmt.Errorf("openssl.cnf: %w", err)

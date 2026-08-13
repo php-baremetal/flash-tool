@@ -1,0 +1,51 @@
+/*
+ * {{.Name}}: a php-esp32 project extension -- custom PHP functions written in C.
+ *
+ * phpflash compiles this into the firmware from ./firmware/exts/{{.Name}}/. The module entry must be
+ * named `{{.Name}}_module_entry` (the directory name decides the symbol); the firmware registers it
+ * at startup, so the functions below are callable from your PHP. Guard optional use with
+ * function_exists('{{.Name}}_hello'). See docs/custom-extensions.md for the full contract.
+ *
+ * The common hardware components (esp_driver_gpio, esp_driver_i2c, driver, esp_timer) are already
+ * on the link; if you need another ESP-IDF component, add it to {{.Name}}/idf_requires.txt (one
+ * component name per line).
+ */
+#include "php.h"
+
+/* A starter function -- replace it with your own. */
+PHP_FUNCTION({{.Name}}_hello)
+{
+    ZEND_PARSE_PARAMETERS_NONE();
+    php_printf("hello from the {{.Name}} extension\n");
+}
+
+/* Example with arguments: {{.Name}}_add($a, $b) returns $a + $b. */
+ZEND_BEGIN_ARG_INFO_EX(arginfo_{{.Name}}_add, 0, 0, 2)
+    ZEND_ARG_INFO(0, a)
+    ZEND_ARG_INFO(0, b)
+ZEND_END_ARG_INFO()
+
+PHP_FUNCTION({{.Name}}_add)
+{
+    zend_long a, b;
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_LONG(a)
+        Z_PARAM_LONG(b)
+    ZEND_PARSE_PARAMETERS_END();
+    RETURN_LONG(a + b);
+}
+
+static const zend_function_entry {{.Name}}_functions[] = {
+    PHP_FE({{.Name}}_hello, NULL)
+    PHP_FE({{.Name}}_add,   arginfo_{{.Name}}_add)
+    PHP_FE_END
+};
+
+zend_module_entry {{.Name}}_module_entry = {
+    STANDARD_MODULE_HEADER,
+    "{{.Name}}",
+    {{.Name}}_functions,
+    NULL, NULL, NULL, NULL, NULL,   /* MINIT, MSHUTDOWN, RINIT, RSHUTDOWN, MINFO */
+    "0.1",
+    STANDARD_MODULE_PROPERTIES,
+};

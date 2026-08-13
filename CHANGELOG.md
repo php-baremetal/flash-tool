@@ -1,6 +1,18 @@
 # Changelog
 
-## [v0.3.0]
+## [v0.5.0]
+
+### Added
+- **Per-project C extensions.** A project's custom C extensions under `./firmware/exts/` are compiled
+  into the firmware: `build` passes `-DPHP_PROJECT_EXTS_DIR` when the directory exists (and holds at
+  least one extension), otherwise nothing changes. See the firmware side in
+  [custom-extensions.md](https://github.com/php-baremetal/php-esp32/blob/master/docs/custom-extensions.md).
+- **`phpflash ext new <name>`** — scaffold a custom C extension. It writes
+  `firmware/exts/<name>/<name>.c` with a working skeleton (a module entry named `<name>_module_entry`
+  plus two example functions), which `build` then compiles in. The name must be a valid lowercase C
+  identifier; `--force` overwrites an existing file.
+
+## [v0.4.0]
 
 ### Added
 - **Per-project PHP version** — `[php] version` in `php-esp32.config.toml` pins the PHP language
@@ -10,6 +22,10 @@
   than one, and records the choice only when it differs from the default. A version that isn't
   installed fails the build up front with the list of the ones that are, instead of a late ESP-IDF
   error.
+
+## [v0.3.0]
+
+### Added
 - **Chip/board check before flashing** — `phpflash flash` probes the connected chip and refuses to
   write an image built for a different target (for example an ESP32-S3 image onto a P4), with a
   message pointing at `[board].target`. `--force` skips the check, and an inconclusive probe (no board
