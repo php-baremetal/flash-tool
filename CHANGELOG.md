@@ -1,5 +1,22 @@
 # Changelog
 
+## [v0.7.0]
+
+### Added
+- **`discover --all` understands boards with no microSD slot.** The probe firmware now reports
+  `microsd=n/a` for an embedded-only board (e.g. the new `esp32-*-zero`), and `discover` prints
+  "microSD: n/a (this board has no card slot)" instead of treating it as an empty slot. Boards and
+  their capabilities are still read from the installed php-esp32, so the new boards need no change
+  here.
+
+### Fixed
+- **`discover --all` board identification when a slotless variant is a candidate.** The final match
+  now uses the microSD probe: a mounted card proves the board has a slot, which rules out the
+  slotless `-zero` variant and picks the board with a slot -- previously, adding a `-zero` board made
+  the non-network candidate count ambiguous and `discover` gave up even though a card had mounted.
+  When nothing is detected (no link, no card), it explains that a slotless `-zero` board and an SD
+  board with an empty slot look identical, and that inserting a card settles it.
+
 ## [v0.6.0]
 
 ### Added

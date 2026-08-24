@@ -166,7 +166,10 @@ $ phpflash discover --all
   microSD:      card present (14895MB)
   PSRAM:        32MB
 
-=> this board is: ESP32-P4-ETH  (build with -DBOARD=esp32-p4-eth)
+====================================================
+  THIS BOARD IS:  ESP32-P4-ETH
+  build with:     -DBOARD=esp32-p4-eth
+====================================================
 ```
 
 It is destructive: it overwrites the app on the board, so it warns, asks first (`-y`/`--yes` skips the

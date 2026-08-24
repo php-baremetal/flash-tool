@@ -130,6 +130,7 @@ type DiscoverFW struct {
 	EthernetNA bool   // this board has no network hardware ("n/a")
 	IP         string
 	MicroSD    bool   // a card mounted
+	MicroSDNA  bool   // this board has no card slot ("n/a")
 	CardSize   string // e.g. "14910MB", when a card mounted
 }
 
@@ -168,6 +169,8 @@ func ParseDiscoverFW(raw string) DiscoverFW {
 				d.CardSize = strings.TrimPrefix(v, "card:")
 			} else if v == "yes" {
 				d.MicroSD = true
+			} else if v == "n/a" {
+				d.MicroSDNA = true
 			}
 		}
 	}

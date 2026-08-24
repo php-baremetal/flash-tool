@@ -102,6 +102,12 @@ DISCOVER-FW-END`
 		t.Errorf("expected n/a ethernet + no card, got %+v", d2)
 	}
 
+	// a Zero-like board: no network hardware AND no card slot (both n/a)
+	d3 := ParseDiscoverFW("DISCOVER-FW-BEGIN\nboard=ESP32-P4-Zero\nethernet=n/a\nmicrosd=n/a\nDISCOVER-FW-END")
+	if d3.MicroSD || !d3.MicroSDNA || !d3.EthernetNA {
+		t.Errorf("expected n/a ethernet + n/a microsd (no slot), got %+v", d3)
+	}
+
 	// no block at all
 	if ParseDiscoverFW("random noise").Seen {
 		t.Errorf("Seen should be false without the block")

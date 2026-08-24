@@ -29,9 +29,12 @@ func printProbe(out io.Writer, df discover.DiscoverFW) {
 	default:
 		fmt.Fprintln(out, "  Ethernet:     no link (no PHY on these pins, or no cable/DHCP)")
 	}
-	if df.MicroSD {
+	switch {
+	case df.MicroSDNA:
+		fmt.Fprintln(out, "  microSD:      n/a (this board has no card slot)")
+	case df.MicroSD:
 		fmt.Fprintf(out, "  microSD:      card present (%s)\n", df.CardSize)
-	} else {
+	default:
 		fmt.Fprintln(out, "  microSD:      no card (empty slot or none)")
 	}
 	if df.PSRAM != "" {
@@ -170,6 +173,7 @@ func newDiscoverCmd() *cobra.Command {
 
 			var matched *manifest.BoardInfo
 			hadNetCandidate := false
+			cardSeen := false // any probe mounted a card -> the board physically has an SD slot
 			for i := range ordered {
 				b := ordered[i]
 				if hasNet(b) {
@@ -184,31 +188,61 @@ func newDiscoverCmd() *cobra.Command {
 					return fmt.Errorf("no output from the discovery firmware (%s)", b.Key)
 				}
 				printProbe(out, df)
+				if df.MicroSD {
+					cardSeen = true
+				}
 				if hasNet(b) && df.Ethernet { // this board's network came up -> it's this board
 					matched = &ordered[i]
 					break
 				}
 			}
-			if matched == nil {
-				// No network came up; if exactly one non-network candidate, that's the board.
-				var nonNet []manifest.BoardInfo
-				for i := range boards {
-					if !hasNet(boards[i]) {
-						nonNet = append(nonNet, boards[i])
-					}
+			// Split the non-network candidates by whether they carry a microSD slot.
+			var nonNetWithSD, nonNetNoSD []manifest.BoardInfo
+			for i := range boards {
+				if hasNet(boards[i]) {
+					continue
 				}
-				if len(nonNet) == 1 {
-					matched = &nonNet[0]
+				if boards[i].MicroSD {
+					nonNetWithSD = append(nonNetWithSD, boards[i])
+				} else {
+					nonNetNoSD = append(nonNetNoSD, boards[i])
+				}
+			}
+			if matched == nil {
+				if cardSeen {
+					// A card mounted -> the board HAS a slot, which rules out the slotless -zero
+					// variant. Pick the single non-network board that has a slot.
+					if len(nonNetWithSD) == 1 {
+						matched = &nonNetWithSD[0]
+					}
+				} else {
+					// Nothing detected (no link, no card). This can't distinguish a slotless -zero
+					// board from a board with an empty slot, so only decide if there is a single
+					// non-network candidate overall.
+					allNonNet := append(append([]manifest.BoardInfo{}, nonNetWithSD...), nonNetNoSD...)
+					if len(allNonNet) == 1 {
+						matched = &allNonNet[0]
+					}
 				}
 			}
 
 			fmt.Fprintln(out)
 			if matched != nil {
-				fmt.Fprintf(out, "=> this board is: %s  (build with -DBOARD=%s)\n", matched.Name, matched.Key)
+				rule := strings.Repeat("=", 52)
+				fmt.Fprintln(out, rule)
+				fmt.Fprintf(out, "  THIS BOARD IS:  %s\n", matched.Name)
+				fmt.Fprintf(out, "  build with:     -DBOARD=%s\n", matched.Key)
+				fmt.Fprintln(out, rule)
 			} else {
 				fmt.Fprintln(out, "Couldn't uniquely identify the board -- the probe results are above.")
 				if hadNetCandidate {
 					fmt.Fprintln(out, "If it has Ethernet, connect the cable (the probe needs the link up) and retry.")
+				}
+				// Ambiguous between a slotless -zero board and an SD board with an empty slot:
+				// inserting a card settles it (a mounted card rules out -zero).
+				if !cardSeen && len(nonNetWithSD) > 0 && len(nonNetNoSD) > 0 {
+					fmt.Fprintln(out, "If it has a microSD slot, insert a card and retry; if it has neither")
+					fmt.Fprintln(out, "network nor a card slot, it's the slotless variant (e.g. -zero).")
 				}
 			}
 
