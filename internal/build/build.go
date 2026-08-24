@@ -103,6 +103,20 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 		msdState = "ON"
 	}
 	dargs = append(dargs, "-DPHP_STORAGE_MICROSD="+msdState)
+	// Extra KB for the embedded `storage` partition ([storage] reserve_kb); always passed (0 when
+	// unset) so a reused build dir can't keep a stale value.
+	reserve := cfg.Storage.ReserveKB
+	if reserve < 0 {
+		reserve = 0
+	}
+	dargs = append(dargs, fmt.Sprintf("-DPHP_STORAGE_RESERVE_KB=%d", reserve))
+	// Size of the reboot-persistent store's NVS partition ([store] size_kb); 0 = no persistence.
+	// Always passed so a reused build dir can't keep a stale value.
+	store := cfg.Store.SizeKB
+	if store < 0 {
+		store = 0
+	}
+	dargs = append(dargs, fmt.Sprintf("-DPHP_STORE_KB=%d", store))
 	return dargs, eff.Fetches, nil
 }
 

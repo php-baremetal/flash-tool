@@ -10,8 +10,8 @@ php-esp32's `setup.sh`, `flash.sh` and `monitor.sh` with one consistent tool.
 It holds no hard-coded knowledge of extensions or hardware. The extensions and their build flags, the
 chip families and boards, and which storage and execution modes each supports are all read from the
 installed php-esp32 at runtime. Add a board, an extension or a PHP version to php-esp32 and it appears
-in phpflash with no change here. Two chip families are supported today (ESP32-P4 and ESP32-S3) and one
-PHP version (8.3); as php-esp32 grows, so does what phpflash offers.
+in phpflash with no change here. Two chip families are supported today (ESP32-P4 and ESP32-S3) and PHP
+8.3, 8.4 and 8.5; as php-esp32 grows, so does what phpflash offers.
 
 ## Highlights
 
@@ -27,6 +27,9 @@ PHP version (8.3); as php-esp32 grows, so does what phpflash offers.
   and a microSD flash clears any leftover embedded image so it cannot shadow the card.
 - **Batteries for real firmware.** Embedded storage, static DNS, and full-openssl TLS with automatic
   host-CA provisioning (`update-certs`).
+- **Per-project, from the config.** Pin the PHP version, scaffold a custom C extension (`ext new`),
+  bake a `.env` into the firmware as `$_ENV` / `getenv()`, and size a reboot-persistent key-value
+  store -- each set in `php-esp32.config.toml`, no firmware fork.
 
 ## Requirements
 
@@ -84,6 +87,7 @@ phpflash monitor                 # open the serial console
 | `monitor [-p port]` | Open the serial console. |
 | `update-certs` | Refresh the TLS CA bundle from the host trust store. |
 | `discover [-p port]` | Identify the connected chip and board (`--all` actively probes it). |
+| `ext new <name>` | Scaffold a custom C extension under `firmware/exts/<name>/`. |
 
 Run `phpflash <command> --help` for the full flag list.
 
@@ -171,13 +175,17 @@ enabled = true
 onig    = true
 
 [php]
-src   = "project-src"
-entry = "index.php"
+src     = "project-src"
+entry   = "index.php"
+version = ""                  # empty = the firmware's default PHP version
 ```
 
-Every key, table and extension setting, with its type and default, is documented in
-[docs/configuration.md](docs/configuration.md). A sibling `php-esp32.config.local.toml`, if present, is
-overlaid on top for machine-specific tweaks (a serial port, a toolchain path) and is git-ignored.
+Beyond these, a project can bake a `.env` into the firmware (read as `$_ENV` / `getenv()`), size a
+reboot-persistent key-value store with `[store] size_kb`, and ship custom C extensions in
+`firmware/exts/` (see `ext new`). Every key, table and extension setting, with its type and default,
+is documented in [docs/configuration.md](docs/configuration.md). A sibling
+`php-esp32.config.local.toml`, if present, is overlaid on top for machine-specific tweaks (a serial
+port, a toolchain path) and is git-ignored.
 
 ## Documentation
 

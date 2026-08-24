@@ -25,6 +25,24 @@ type Config struct {
 	Extensions  map[string]Extension `toml:"extensions"`
 	Php         PhpConfig            `toml:"php"`
 	Network     NetworkConfig        `toml:"network"`
+	Env         EnvConfig            `toml:"env"`
+	Store       StoreConfig          `toml:"store"`
+}
+
+// StoreConfig sizes the reboot-persistent key-value store (the `store` extension, backed by NVS;
+// see docs/store.md). SizeKB > 0 adds a dedicated NVS partition of that size; 0 (or no [store]
+// section) means no persistence -- store_available() is false.
+type StoreConfig struct {
+	SizeKB int `toml:"size_kb"`
+}
+
+// EnvConfig controls baking a project's .env into the firmware as $_ENV / getenv() (see
+// docs/environment.md). Enabled is a pointer so an absent [env] section (nil) means "on when the
+// file exists"; set it false to turn the feature off. File is the env file, relative to the project
+// (default ".env").
+type EnvConfig struct {
+	Enabled *bool  `toml:"enabled"`
+	File    string `toml:"file"`
 }
 
 // NetworkConfig holds outbound-networking options for boards that have a network. `dns` is an
@@ -39,6 +57,11 @@ type NetworkConfig struct {
 // defaults to no card (the SD drivers aren't even compiled in).
 type StorageConfig struct {
 	Microsd bool `toml:"microsd"`
+	// ReserveKB pads the embedded `storage` partition: the firmware sizes it to the source plus FAT
+	// overhead, and adds this many KB on top. Only relevant for an `embedded` project; 0 = just the
+	// automatic fit. (The image is read-only, so this is headroom for a bigger source, not runtime
+	// growth.)
+	ReserveKB int `toml:"reserve_kb"`
 }
 
 type BoardConfig struct {

@@ -16,6 +16,7 @@ version = "{{ .PhpEsp32.Version }}"
 {{ if eq .StorageType "embedded" }}
 [storage]
 microsd = {{ .Storage.Microsd }}   # embedded: also mount a microSD for writable data (off = no SD support compiled)
+reserve_kb = {{ .Storage.ReserveKB }}   # extra KB in the flash `storage` partition on top of the source (0 = just fit it)
 {{ end }}{{ range $key, $ext := .Extensions }}
 [extensions.{{ $key }}]
 enabled = {{ $ext.Enabled }}
@@ -27,3 +28,14 @@ enabled = {{ $ext.Enabled }}
 src     = "{{ .Php.Src }}"      # PHP source folder (copied to the microSD / embedded)
 entry   = "{{ .Php.Entry }}"    # entry file within src
 version = "{{ .Php.Version }}"   # PHP version to build (e.g. "8.5.9"); empty = the repo default
+
+# A ./.env next to this file is baked into the firmware and exposed to PHP as $_ENV / getenv().
+# On by default when the file exists (see docs/environment.md). Uncomment to configure:
+# [env]
+# enabled = true      # false disables baking even if .env exists
+# file    = ".env"    # env file path, relative to the project
+
+# Reboot-persistent key-value store for PHP (store_set/store_get, backed by NVS; docs/store.md).
+# Off by default; give it flash to enable it:
+# [store]
+# size_kb = 32        # size of the persistent NVS partition (0/absent = no persistence)

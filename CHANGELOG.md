@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.6.0]
+
+### Added
+- **`[storage] reserve_kb`** — for the firmware's dynamic partition table, `build` passes
+  `-DPHP_STORAGE_RESERVE_KB` so an embedded project can pad its flash `storage` partition beyond the
+  source (0 = just fit it). A microSD project has no `storage` partition, so the erase step on flash
+  is now a no-op there (it was already tolerant of a missing partition).
+- **`.env` support** — phpflash reads a project's `.env` (next to `php-esp32.config.toml`), parses it
+  (`KEY=VALUE`, `#` comments, `export`, single/double quotes) and bakes it into the firmware, where
+  PHP exposes it as `$_ENV` and `getenv()`. Configurable via `[env]` (`enabled`, default on when the
+  file exists; `file`, default `.env`). `phpflash init` now adds `.env` to the scaffolded
+  `.gitignore`. The values live in flash, not on the microSD -- not secret, but off removable media.
+  See the firmware side in
+  [environment.md](https://github.com/php-baremetal/php-esp32/blob/master/docs/environment.md).
+- **`[store] size_kb`** — sizes the firmware's reboot-persistent key-value store (`store_*`): `build`
+  passes `-DPHP_STORE_KB`, and the dynamic partition table turns it into a dedicated NVS partition. 0
+  or absent means no persistence. See
+  [store.md](https://github.com/php-baremetal/php-esp32/blob/master/docs/store.md).
+
 ## [v0.5.0]
 
 ### Added

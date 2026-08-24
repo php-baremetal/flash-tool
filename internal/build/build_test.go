@@ -39,7 +39,7 @@ func TestArgsDeterministic(t *testing.T) {
 	want := []string{
 		"-DBOARD=esp32-p4-pico", "-DPHP_VERSION=8.3.32", "-DPHP_CPU_FREQ_MHZ=",
 		"-DPHP_EXT_DATE=OFF", "-DPHP_EXT_DATE_MINIMAL_TZ=OFF", "-DPHP_EXT_SQLITE=ON",
-		"-DPHP_STORAGE_MICROSD=ON",
+		"-DPHP_STORAGE_MICROSD=ON", "-DPHP_STORAGE_RESERVE_KB=0", "-DPHP_STORE_KB=0",
 	}
 	if !reflect.DeepEqual(dargs, want) {
 		t.Errorf("dargs = %v\nwant %v", dargs, want)
