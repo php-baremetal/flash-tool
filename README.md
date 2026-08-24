@@ -1,3 +1,19 @@
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.svg">
+    <img alt="phpflash" src="assets/logo-light.svg" width="440">
+  </picture>
+</div>
+
+<p align="center">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/php-baremetal/flash-tool?style=flat-square&color=475569"></a>
+  <img alt="Go 1.25+" src="https://img.shields.io/badge/Go-1.25%2B-00ADD8?style=flat-square&logo=go&logoColor=white">
+  <img alt="Host: Linux | macOS" src="https://img.shields.io/badge/host-Linux%20%7C%20macOS-2EA44F?style=flat-square&logo=linux&logoColor=white">
+  <img alt="Single static binary" src="https://img.shields.io/badge/single-static%20binary-475569?style=flat-square">
+  <a href="https://github.com/php-baremetal/flash-tool/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/php-baremetal/flash-tool?style=flat-square&color=475569"></a>
+</p>
+
 # phpflash
 
 The command-line front end for [php-esp32](https://github.com/php-baremetal/php-esp32): create,
