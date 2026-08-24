@@ -39,3 +39,11 @@ version = "{{ .Php.Version }}"   # PHP version to build (e.g. "8.5.9"); empty = 
 # Off by default; give it flash to enable it:
 # [store]
 # size_kb = 32        # size of the persistent NVS partition (0/absent = no persistence)
+
+# A volatile in-RAM store (mem_set/mem_get) is always available to share data between the requests
+# of one boot -- no config needed, wiped on reboot (docs/mem.md).
+
+# web-server only: a one-time PHP script run once before the HTTP server starts, for setup shared
+# across requests (bring hardware up, seed mem_*/store_*). See docs/mem.md.
+# [web-server]
+# init = "init.php"   # PHP file (relative to [php] src) run once at boot

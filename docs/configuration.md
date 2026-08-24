@@ -63,6 +63,14 @@ For a board with a network. Optional.
 |---|---|---|---|
 | `dns` | list of strings | `[]` (use DHCP) | Static DNS servers the firmware applies after DHCP, for example `["1.1.1.1", "8.8.8.8"]`. Empty means use whatever DHCP hands out. Relevant when a name lookup is needed, such as the HTTPS client. |
 
+## `[web-server]`
+
+For a `web-server` project. Optional.
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `init` | string | `""` (none) | A PHP script within `[php] src` the firmware runs **once**, before the HTTP server starts, for one-time setup shared across requests -- bringing hardware up through a C extension, or seeding the in-RAM `mem_*` / persistent `store_*` stores. Its output goes to the console; a failure is logged but non-fatal. A no-op for non-`web-server` projects. See the firmware's [mem.md](https://github.com/php-baremetal/php-esp32/blob/master/docs/mem.md). |
+
 ## `[php]`
 
 | Key | Type | Default | Meaning |

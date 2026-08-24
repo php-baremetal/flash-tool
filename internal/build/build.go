@@ -168,6 +168,17 @@ func EntryArg(cfg *config.Config) (string, bool) {
 	return "-DPHP_ENTRY=" + entry, true
 }
 
+// WebInitArg returns the -DPHP_WEB_INIT argument naming the web-server model's one-time init script
+// within the source ([web-server] init). The firmware runs it once before the HTTP server starts.
+// The bool is false unless this is a web-server project with a non-empty init, since it is a no-op
+// for the other project types.
+func WebInitArg(cfg *config.Config) (string, bool) {
+	if cfg.Type != "web-server" || cfg.WebServer.Init == "" {
+		return "", false
+	}
+	return "-DPHP_WEB_INIT=" + cfg.WebServer.Init, true
+}
+
 // openSSLConf is the minimal openssl.cnf the full openssl build reads at startup (it activates
 // the default provider). OpenSSL 3.0 on the chip needs a readable config to fully bring its
 // providers up; the firmware points OPENSSL_CONF at this file shipped next to index.php.

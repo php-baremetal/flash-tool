@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.8.0]
+
+### Added
+- **`[web-server] init`** — a web-server project can name a PHP script the firmware runs once, before
+  the HTTP server starts, for one-time setup shared across requests (bring hardware up, seed the
+  in-RAM `mem_*` or persistent `store_*` stores). `build` passes it as `-DPHP_WEB_INIT` only for a
+  `web-server` project with a non-empty `init`. `init` scaffolds a commented `[web-server]` section.
+  See the firmware's
+  [mem.md](https://github.com/php-baremetal/php-esp32/blob/master/docs/mem.md).
+
 ## [v0.7.0]
 
 ### Added

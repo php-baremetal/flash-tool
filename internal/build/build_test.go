@@ -208,6 +208,22 @@ func TestOpenSSLConfArg(t *testing.T) {
 	}
 }
 
+func TestWebInitArg(t *testing.T) {
+	// web-server with an init file -> flag
+	arg, ok := WebInitArg(&config.Config{Type: "web-server", WebServer: config.WebServerConfig{Init: "init.php"}})
+	if !ok || arg != "-DPHP_WEB_INIT=init.php" {
+		t.Errorf("WebInitArg = %q, %v", arg, ok)
+	}
+	// web-server without an init -> no flag
+	if _, ok := WebInitArg(&config.Config{Type: "web-server"}); ok {
+		t.Errorf("no init should emit no flag")
+	}
+	// init set but not a web-server project -> no flag (it would be a no-op)
+	if _, ok := WebInitArg(&config.Config{Type: "init-loop", WebServer: config.WebServerConfig{Init: "init.php"}}); ok {
+		t.Errorf("non-web-server should emit no flag")
+	}
+}
+
 func TestDNSArg(t *testing.T) {
 	// no dns -> no flag
 	if _, ok := DNSArg(&config.Config{}); ok {

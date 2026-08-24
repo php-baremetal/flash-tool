@@ -110,6 +110,10 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 		if arg, ok := build.EntryArg(cfg); ok {
 			dargs = append(dargs, arg)
 		}
+		// A web-server project can run a one-time init script before the HTTP server starts.
+		if arg, ok := build.WebInitArg(cfg); ok {
+			dargs = append(dargs, arg)
+		}
 		// Custom C extensions the project ships in ./firmware/exts are compiled into the firmware.
 		if arg, ok := build.ProjectExtsArg(wd); ok {
 			dargs = append(dargs, arg)

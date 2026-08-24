@@ -27,6 +27,14 @@ type Config struct {
 	Network     NetworkConfig        `toml:"network"`
 	Env         EnvConfig            `toml:"env"`
 	Store       StoreConfig          `toml:"store"`
+	WebServer   WebServerConfig      `toml:"web-server"`
+}
+
+// WebServerConfig holds options for the `web-server` project type. Init is an optional PHP script
+// (relative to [php] src) the firmware runs once, before the HTTP server starts, for one-time setup
+// -- bringing hardware up or seeding mem_*/store_*. Empty (or a non-web-server project) means none.
+type WebServerConfig struct {
+	Init string `toml:"init"`
 }
 
 // StoreConfig sizes the reboot-persistent key-value store (the `store` extension, backed by NVS;
