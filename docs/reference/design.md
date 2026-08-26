@@ -5,7 +5,7 @@ see_also:
   - { href: './troubleshooting.md', meta: 'Reference', label: 'Troubleshooting' }
   - { href: '../configuration/manifest.md', meta: 'Configuration', label: 'The php-esp32 manifest' }
   - { href: 'https://github.com/php-baremetal/php-esp32', meta: 'external', label: 'php-esp32 on GitHub' }
-prev: { label: 'Identify an unknown board', href: '../recipes/identify-an-unknown-board.md' }
+prev: { label: 'Customize the partition table', href: '../recipes/custom-partition-table.md' }
 next: { label: 'Troubleshooting', href: './troubleshooting.md' }
 ---
 

@@ -58,6 +58,22 @@ func TargetForBoard(phpEsp32Dir, boardKey string) (target string, ok bool) {
 	return "", false
 }
 
+// BoardDir returns the on-disk directory of a board (boards/<family>/<boardKey>) in an installed
+// php-esp32, e.g. "esp32-s3-eth" -> "<phpEsp32Dir>/boards/esp32-s3/esp32-s3-eth". ok is false when
+// no family contains that board. Used to reach a board's committed files (partitions.csv, ...).
+func BoardDir(phpEsp32Dir, boardKey string) (dir string, ok bool) {
+	fams, _ := Families(phpEsp32Dir)
+	for _, f := range fams {
+		boards, _ := BoardsIn(phpEsp32Dir, f.Key)
+		for _, b := range boards {
+			if b.Key == boardKey {
+				return filepath.Join(phpEsp32Dir, "boards", f.Key, b.Key), true
+			}
+		}
+	}
+	return "", false
+}
+
 // BoardsIn lists the boards under a family (boards/<family>/*/board.toml), sorted by
 // key. Empty (not an error) if none.
 func BoardsIn(phpEsp32Dir, family string) ([]BoardInfo, error) {

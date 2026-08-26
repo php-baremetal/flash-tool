@@ -6,7 +6,7 @@ see_also:
   - { href: '../../getting-started/quick-start.md', meta: '10 min', label: 'Quick start' }
   - { href: './pin-a-php-version.md', meta: '3 min' }
 prev: { label: 'Bake a .env', href: './bake-a-dotenv.md' }
-next: { label: 'Design', href: '../reference/design.md' }
+next: { label: 'Customize the partition table', href: './custom-partition-table.md' }
 ---
 
 # Identify an unknown board

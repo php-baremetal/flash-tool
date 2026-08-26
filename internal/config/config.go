@@ -14,6 +14,12 @@ const FileName = "php-esp32.config.toml"
 // port, toolchain paths, ...) out of the committed config.
 const LocalFileName = "php-esp32.config.local.toml"
 
+// PartitionsFileName is the optional per-project partition table. When a file with this name
+// sits next to the config, `phpflash build` uses it as the fixed-partition spec instead of the
+// board's committed table (the auto-generated `storage`/`phpstore` partitions are still
+// appended). Create one from the board's defaults with `phpflash partitions publish`.
+const PartitionsFileName = "partitions.csv"
+
 type Config struct {
 	Name        string               `toml:"name"`
 	StorageType string               `toml:"storage_type"`

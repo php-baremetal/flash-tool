@@ -157,6 +157,19 @@ func ProjectExtsArg(projectDir string) (string, bool) {
 	return "", false
 }
 
+// PartitionsArg returns the -DPHP_PARTITIONS_CSV argument when the project ships its own partition
+// table (a `partitions.csv` next to the config). The firmware's gen-partitions.cmake then uses it as
+// the fixed-partition spec instead of the board's committed table (still appending the generated
+// `storage`/`phpstore` partitions). The bool is false when the project has no such file, in which
+// case the board default applies. The path is absolute, since ESP-IDF runs from its own build tree.
+func PartitionsArg(projectDir string) (string, bool) {
+	p := filepath.Join(projectDir, config.PartitionsFileName)
+	if _, err := os.Stat(p); err != nil {
+		return "", false
+	}
+	return "-DPHP_PARTITIONS_CSV=" + p, true
+}
+
 // EntryArg returns the -DPHP_ENTRY argument naming the entry script within the source ([php] entry),
 // so a framework with a nested front controller runs (Laravel: "public/index.php"). The bool is
 // false when the entry is the firmware's default ("index.php"/empty), which needs no flag.

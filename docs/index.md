@@ -21,6 +21,7 @@
   - [Scaffold a C extension](./recipes/scaffold-a-c-extension.md)
   - [Bake a .env into the firmware](./recipes/bake-a-dotenv.md)
   - [Identify an unknown board](./recipes/identify-an-unknown-board.md)
+  - [Customize the partition table](./recipes/custom-partition-table.md)
 - Reference
   - [Design](./reference/design.md)
   - [Troubleshooting](./reference/troubleshooting.md)

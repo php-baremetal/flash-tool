@@ -381,6 +381,23 @@ func TestEmbedArg(t *testing.T) {
 	}
 }
 
+func TestPartitionsArg(t *testing.T) {
+	// no partitions.csv in the project -> no flag (board default applies).
+	dir := t.TempDir()
+	if arg, ok := PartitionsArg(dir); ok {
+		t.Errorf("no partitions.csv should emit no flag, got %q", arg)
+	}
+	// a project partitions.csv -> absolute -DPHP_PARTITIONS_CSV flag.
+	p := filepath.Join(dir, config.PartitionsFileName)
+	if err := os.WriteFile(p, []byte("nvs, data, nvs, , 24K\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	arg, ok := PartitionsArg(dir)
+	if !ok || arg != "-DPHP_PARTITIONS_CSV="+p {
+		t.Errorf("PartitionsArg = %q, %v; want -DPHP_PARTITIONS_CSV=%s", arg, ok, p)
+	}
+}
+
 func TestEntryArg(t *testing.T) {
 	// default entry -> no flag
 	if _, ok := EntryArg(&config.Config{Php: config.PhpConfig{Entry: "index.php"}}); ok {

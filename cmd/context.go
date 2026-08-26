@@ -118,6 +118,12 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 		if arg, ok := build.ProjectExtsArg(wd); ok {
 			dargs = append(dargs, arg)
 		}
+		// A project can override the board's fixed partition table by shipping its own
+		// partitions.csv (see `phpflash partitions publish`); when present it wins.
+		if arg, ok := build.PartitionsArg(wd); ok {
+			dargs = append(dargs, arg)
+			fmt.Fprintf(os.Stderr, "==> using project partition table: ./%s\n", config.PartitionsFileName)
+		}
 		// A project .env is baked into the firmware as $_ENV / getenv() (see docs/environment.md).
 		if arg, ok, err := build.EnvSourceArg(cfg, wd, projectBuildDir()); err != nil {
 			return nil, fmt.Errorf(".env: %w", err)

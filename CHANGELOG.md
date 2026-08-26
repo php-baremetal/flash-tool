@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.9.0]
+
+### Added
+- **`phpflash partitions publish`** — writes a `partitions.csv` into the project from the configured
+  board's committed table, with guidance comments and a per-board table of sensible `factory` sizes.
+  The table is computed from the board's flash size (read from its `sdkconfig.board`) and shows how
+  much each `factory` leaves for the generated `storage`/`phpstore` partitions. `--force` overwrites an
+  existing file; `--php-esp32-path` points at the firmware checkout. See
+  [docs/recipes/custom-partition-table.md](docs/recipes/custom-partition-table.md).
+- **Per-project partition table.** When a `partitions.csv` sits next to `php-esp32.config.toml`,
+  `build` passes `-DPHP_PARTITIONS_CSV` and the firmware uses it as the fixed-partition spec instead of
+  the board's committed table (the generated `storage`/`phpstore` partitions are still appended). The
+  build announces `using project partition table`; delete the file to revert to the board default.
+
 ## [v0.8.0]
 
 ### Added
