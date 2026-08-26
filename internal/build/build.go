@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"phpflash/internal/config"
@@ -117,6 +118,18 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 		store = 0
 	}
 	dargs = append(dargs, fmt.Sprintf("-DPHP_STORE_KB=%d", store))
+	// s3_onboard_rgb (ESP32-S3 onboard RGB LED) data pin: default GPIO 48, override with
+	// [extensions.s3_onboard_rgb] pin = N. Always passed so a reused build dir can't keep a stale
+	// value; it's only read when the extension is compiled (esp32s3 + flag on).
+	rgbPin := 48
+	if ext, ok := cfg.Extensions["s3_onboard_rgb"]; ok {
+		if p, ok := ext.Options["pin"]; ok {
+			if n, err := strconv.Atoi(p); err == nil {
+				rgbPin = n
+			}
+		}
+	}
+	dargs = append(dargs, fmt.Sprintf("-DPHP_S3_RGB_GPIO=%d", rgbPin))
 	return dargs, eff.Fetches, nil
 }
 

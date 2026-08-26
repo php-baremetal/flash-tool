@@ -13,6 +13,11 @@
   `build` passes `-DPHP_PARTITIONS_CSV` and the firmware uses it as the fixed-partition spec instead of
   the board's committed table (the generated `storage`/`phpstore` partitions are still appended). The
   build announces `using project partition table`; delete the file to revert to the board default.
+- **Numeric extension settings.** The config parser now accepts integer values under
+  `[extensions.<name>]` (previously only booleans and strings were kept, so numbers were silently
+  dropped). This lets the ESP32-S3 onboard-RGB extension take a pin: `[extensions.s3_onboard_rgb]
+  pin = 48`, which `build` passes as `-DPHP_S3_RGB_GPIO` (default 48). The extension itself is read
+  from the firmware manifest like any other, so nothing else changed here.
 
 ## [v0.8.0]
 

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/BurntSushi/toml"
 )
@@ -153,6 +154,12 @@ func applyFile(path string, c *Config) error {
 					ext.Options = map[string]string{}
 				}
 				ext.Options[k] = val
+			case int64:
+				// Numeric settings (e.g. s3_onboard_rgb pin = 48) land in Options as a string.
+				if ext.Options == nil {
+					ext.Options = map[string]string{}
+				}
+				ext.Options[k] = strconv.FormatInt(val, 10)
 			}
 		}
 		c.Extensions[extKey] = ext
