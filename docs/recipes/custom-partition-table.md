@@ -17,7 +17,7 @@ tight, and some projects want a different split. The classic case is a small-fla
 have to fit at once, and you may need to resize the app partition to make room. This recipe shows how
 to take over the table for one project without forking the firmware.
 
-![A fingertip-sized ESP32-S3 board that costs about $4 — 4 MB flash and 2 MB PSRAM. Boards this small are exactly the tight fit this recipe is about.](/documentation/flash-tool/master/assets/tiny-esp32-s3.jpg)
+![A fingertip-sized ESP32-S3 board that costs about $4 — 4 MB flash and 2 MB PSRAM. Boards this small are exactly the tight fit this recipe is about.](https://raw.githubusercontent.com/php-baremetal/flash-tool/master/docs/assets/tiny-esp32-s3.jpg)
 
 *A ~$4, fingertip-sized ESP32-S3 (4 MB flash / 2 MB PSRAM) — the kind of tight-flash board where the default layout stops fitting and you take the partition table into your own hands.*
 

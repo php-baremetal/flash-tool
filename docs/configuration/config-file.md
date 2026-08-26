@@ -183,7 +183,7 @@ The full openssl reference — the two config modes and the TLS-client requireme
 firmware's [openssl.md](https://github.com/php-baremetal/php-esp32/blob/master/docs/openssl.md); the
 per-extension flash cost is in
 [footprint.md](https://github.com/php-baremetal/php-esp32/blob/master/docs/footprint.md). OPcache's
-two cache modes have their own page in [OPcache](../../php-esp32/docs/extensions/opcache.md).
+two cache modes have their own page in [OPcache](https://github.com/php-baremetal/php-esp32/blob/master/docs/extensions/opcache.md).
 
 ## `[env]` and `[store]`
 
@@ -197,8 +197,8 @@ reboot-persistent key-value store.
 | `[env]` | `file` | string | `".env"` | Path to the env file, relative to the project. |
 | `[store]` | `size_kb` | int | `0` (no persistence) | Add a dedicated NVS partition of this size; `0` or no `[store]` section means `store_available()` is false. |
 
-The full behaviour is on the [build-time environment](../../php-esp32/docs/storage/environment.md) and
-[persistent store](../../php-esp32/docs/storage/persistent-store.md) pages. The volatile in-RAM store
+The full behaviour is on the [build-time environment](https://github.com/php-baremetal/php-esp32/blob/master/docs/storage/environment.md) and
+[persistent store](https://github.com/php-baremetal/php-esp32/blob/master/docs/storage/persistent-store.md) pages. The volatile in-RAM store
 (`mem_*`) needs no config at all.
 
 ## Local overrides: `php-esp32.config.local.toml`
