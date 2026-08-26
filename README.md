@@ -107,8 +107,8 @@ phpflash monitor                 # open the serial console
 
 Run `phpflash <command> --help` for the full flag list.
 
-The per-command detail (every flag, and what each step does) is in
-[docs/commands.md](docs/commands.md). A few notes worth having up front:
+The per-command detail (every flag, and what each step does) is in the
+[command reference](docs/index.md) — one page per command. A few notes worth having up front:
 
 - `init` reads the installed php-esp32, so its board and extension prompts offer only what the firmware
   implements and the chosen board supports. `--yes` takes every default.
@@ -202,15 +202,18 @@ version = ""                  # empty = the firmware's default PHP version
 Beyond these, a project can bake a `.env` into the firmware (read as `$_ENV` / `getenv()`), size a
 reboot-persistent key-value store with `[store] size_kb`, and ship custom C extensions in
 `firmware/exts/` (see `ext new`). Every key, table and extension setting, with its type and default,
-is documented in [docs/configuration.md](docs/configuration.md). A sibling
+is documented in [docs/configuration/config-file.md](docs/configuration/config-file.md). A sibling
 `php-esp32.config.local.toml`, if present, is overlaid on top for machine-specific tweaks (a serial
 port, a toolchain path) and is git-ignored.
 
 ## Documentation
 
-- [docs/configuration.md](docs/configuration.md): every option in `php-esp32.config.toml`.
-- [docs/commands.md](docs/commands.md): the full command and flag reference.
-- [docs/design.md](docs/design.md): how phpflash is built and how it reads php-esp32.
+The docs are organised as a small set of pages under [docs/](docs/index.md):
+
+- [Configuration file](docs/configuration/config-file.md): every option in `php-esp32.config.toml`.
+- [Command reference](docs/commands/init.md): one page per command, every flag.
+- [Design](docs/reference/design.md): how phpflash is built and how it reads php-esp32.
+- Getting started, recipes and troubleshooting: see the [documentation index](docs/index.md).
 
 For the firmware itself (writing PHP for the board, the extensions, the porting details), see the
 [php-esp32](https://github.com/php-baremetal/php-esp32) docs.
@@ -228,7 +231,7 @@ Everything about extensions and hardware is owned by php-esp32 and read at runti
 A project's build flags are derived entirely from the manifest: the project type's mandatory
 extensions, plus the enabled optional ones (with `requires` pulled in transitively) and their
 settings, become `-D<flag>=ON`; every other optional flag is emitted `=OFF`. The full architecture is
-in [docs/design.md](docs/design.md).
+in [docs/reference/design.md](docs/reference/design.md).
 
 ## Development
 

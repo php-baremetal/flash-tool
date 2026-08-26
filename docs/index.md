@@ -1,0 +1,26 @@
+# Documentation Index
+
+- Getting started
+  - [Overview](./overview.md)
+  - [Installation](./getting-started/installation.md)
+  - [Your first project](./getting-started/first-project.md)
+- Commands
+  - [phpflash init](./commands/init.md)
+  - [phpflash system-setup](./commands/system-setup.md)
+  - [phpflash build](./commands/build.md)
+  - [phpflash flash](./commands/flash.md)
+  - [phpflash monitor](./commands/monitor.md)
+  - [phpflash discover](./commands/discover.md)
+  - [phpflash ext](./commands/ext.md)
+  - [phpflash update-certs](./commands/update-certs.md)
+- Configuration
+  - [Configuration file](./configuration/config-file.md)
+  - [The php-esp32 manifest](./configuration/manifest.md)
+- Recipes
+  - [Pin a PHP version](./recipes/pin-a-php-version.md)
+  - [Scaffold a C extension](./recipes/scaffold-a-c-extension.md)
+  - [Bake a .env into the firmware](./recipes/bake-a-dotenv.md)
+  - [Identify an unknown board](./recipes/identify-an-unknown-board.md)
+- Reference
+  - [Design](./reference/design.md)
+  - [Troubleshooting](./reference/troubleshooting.md)
