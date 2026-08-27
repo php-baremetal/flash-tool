@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.9.1]
+
+### Added
+- **Project name passed to the firmware.** `build` now emits `-DPHP_ESP32_PROJECT_NAME=<name>` (from
+  the config's `name`), which the firmware surfaces in `phpinfo()`'s new "PHP Baremetal Infos" table
+  alongside the board and the php-esp32 / ESP-IDF versions.
+
 ## [v0.9.0]
 
 ### Added

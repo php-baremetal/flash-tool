@@ -69,6 +69,10 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 	sort.Strings(sorted)
 
 	dargs = append(dargs, "-DBOARD="+cfg.Board.Target, "-DPHP_VERSION="+phpVersion)
+	if cfg.Name != "" {
+		// Exposed by the firmware in phpinfo()'s "PHP Baremetal Infos" table (main.c -> PHP_ESP32_PROJECT_NAME).
+		dargs = append(dargs, "-DPHP_ESP32_PROJECT_NAME="+cfg.Name)
+	}
 	// Always emit the CPU-freq flag (empty when unset) so a reused build dir can't keep a stale
 	// cached value -- same reason the extension flags below are always passed ON/OFF.
 	freq := ""
