@@ -24,11 +24,34 @@ type Mode struct {
 }
 
 type Setting struct {
-	Key         string `toml:"key"`
-	Description string `toml:"description"`
-	Flag        string `toml:"flag"`
-	Default     bool   `toml:"default"`
-	Fetch       string `toml:"fetch"`
+	Key         string   `toml:"key"`
+	Description string   `toml:"description"`
+	Flag        string   `toml:"flag"`
+	Default     any      `toml:"default"` // bool for a switch; a string for an enum
+	Kind        string   `toml:"kind"`    // "" = boolean switch (-DFLAG=ON/OFF); "enum" = -DFLAG=<choice>
+	Choices     []string `toml:"choices"` // enum only
+	Fetch       string   `toml:"fetch"`
+}
+
+// EnumDefault returns an enum setting's default choice (its `default`, or the first choice).
+func (s Setting) EnumDefault() string {
+	if d, ok := s.Default.(string); ok && d != "" {
+		return d
+	}
+	if len(s.Choices) > 0 {
+		return s.Choices[0]
+	}
+	return ""
+}
+
+// EnumValid reports whether v is one of the setting's choices.
+func (s Setting) EnumValid(v string) bool {
+	for _, c := range s.Choices {
+		if c == v {
+			return true
+		}
+	}
+	return false
 }
 
 type Extension struct {

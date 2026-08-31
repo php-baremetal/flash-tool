@@ -59,6 +59,9 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 			names[flagName(e.Flag)] = true
 		}
 		for _, s := range e.Settings {
+			if s.Kind == "enum" {
+				continue // enum settings emit -DFLAG=<choice> below, not -DFLAG=ON/OFF
+			}
 			names[flagName(s.Flag)] = true
 		}
 	}
@@ -86,6 +89,23 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 			state = "ON"
 		}
 		dargs = append(dargs, "-D"+n+"="+state)
+	}
+	// Enum settings (e.g. sqlite `type`): emit -DFLAG=<value> -- the config's chosen choice for an
+	// enabled extension, else the setting's default. Always passed (like the ON/OFF flags) so a
+	// reused build dir can't keep a stale value.
+	for _, e := range m.Extensions {
+		for _, s := range e.Settings {
+			if s.Kind != "enum" {
+				continue
+			}
+			val := s.EnumDefault()
+			if ext, ok := cfg.Extensions[e.Key]; ok && ext.Enabled {
+				if v := ext.Options[s.Key]; s.EnumValid(v) {
+					val = v
+				}
+			}
+			dargs = append(dargs, "-D"+flagName(s.Flag)+"="+val)
+		}
 	}
 	// Project-type flags (e.g. web-server -> PHP_PROJECT_WEB_SERVER). Pass every one the
 	// manifest declares explicitly ON/OFF -- ON for the selected type -- so a build dir that

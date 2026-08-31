@@ -515,3 +515,42 @@ func TestExtractBins(t *testing.T) {
 		}
 	}
 }
+
+func TestArgsEnumSetting(t *testing.T) {
+	m := &manifest.Manifest{
+		ProjectTypes: []manifest.Mode{{Key: "init-loop", Available: true}},
+		Extensions: []manifest.Extension{
+			{Key: "sqlite", Flag: "PHP_EXT_SQLITE=ON", Settings: []manifest.Setting{
+				{Key: "type", Kind: "enum", Flag: "PHP_EXT_SQLITE_API",
+					Choices: []string{"pdo-sqlite", "sqlite3"}, Default: "pdo-sqlite"},
+			}},
+		},
+	}
+	base := func(opts map[string]string) *config.Config {
+		return &config.Config{
+			Type: "init-loop", Board: config.BoardConfig{Target: "esp32-s3-pico"},
+			Extensions: map[string]config.Extension{"sqlite": {Enabled: true, Options: opts}},
+		}
+	}
+	cases := []struct {
+		name string
+		opts map[string]string
+		want string
+	}{
+		{"default when unset", nil, "-DPHP_EXT_SQLITE_API=pdo-sqlite"},
+		{"chosen value", map[string]string{"type": "sqlite3"}, "-DPHP_EXT_SQLITE_API=sqlite3"},
+		{"invalid falls back", map[string]string{"type": "bogus"}, "-DPHP_EXT_SQLITE_API=pdo-sqlite"},
+	}
+	for _, c := range cases {
+		dargs, _, err := Args(base(c.opts), m, "8.4.25")
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if !contains(dargs, c.want) {
+			t.Errorf("%s: want %q in %v", c.name, c.want, dargs)
+		}
+		if contains(dargs, "-DPHP_EXT_SQLITE_API=ON") || contains(dargs, "-DPHP_EXT_SQLITE_API=OFF") {
+			t.Errorf("%s: enum flag emitted as ON/OFF: %v", c.name, dargs)
+		}
+	}
+}

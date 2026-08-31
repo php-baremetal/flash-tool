@@ -23,6 +23,9 @@ enabled = {{ $ext.Enabled }}
 {{- range $sk, $sv := $ext.Settings }}
 {{ $sk }} = {{ $sv }}
 {{- end }}
+{{- range $sk, $sv := $ext.Options }}
+{{ $sk }} = "{{ $sv }}"
+{{- end }}
 {{ end }}
 [php]
 src     = "{{ .Php.Src }}"      # PHP source folder (copied to the microSD / embedded)

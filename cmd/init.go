@@ -206,7 +206,27 @@ func chooseExtensions(p prompt.Prompter, m *manifest.Manifest, projType string, 
 		e := optional[idx]
 		ext := config.Extension{Enabled: true}
 		for _, s := range e.Settings {
-			on, _ := p.Confirm("  "+e.Key+": "+s.Description, s.Default)
+			if s.Kind == "enum" {
+				opts := make([]prompt.Option, len(s.Choices))
+				def := 0
+				for i, c := range s.Choices {
+					label := c
+					if c == s.EnumDefault() {
+						label, def = c+" (default)", i
+					}
+					opts[i] = prompt.Option{Label: label}
+				}
+				idx, _ := p.Select("  "+e.Key+" "+s.Key+": "+s.Description, opts, def)
+				if v := s.Choices[idx]; v != s.EnumDefault() {
+					if ext.Options == nil {
+						ext.Options = map[string]string{}
+					}
+					ext.Options[s.Key] = v
+				}
+				continue
+			}
+			def, _ := s.Default.(bool)
+			on, _ := p.Confirm("  "+e.Key+": "+s.Description, def)
 			if on {
 				if ext.Settings == nil {
 					ext.Settings = map[string]bool{}
