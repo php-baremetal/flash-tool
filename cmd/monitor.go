@@ -7,6 +7,7 @@ import (
 
 	"phpflash/internal/build"
 	"phpflash/internal/config"
+	"phpflash/internal/platform"
 )
 
 func newMonitorCmd() *cobra.Command {
@@ -23,6 +24,9 @@ func newMonitorCmd() *cobra.Command {
 				cfgPort = cfg.Board.Port
 			}
 			p := resolvePort(port, cfgPort)
+			if err := platform.CheckPortAccess(p); err != nil {
+				return err
+			}
 			inv := build.ExecInvoker{PhpEsp32Dir: phpDir, IdfPath: idf, Out: os.Stdout}
 			return build.Monitor(inv, os.Stdout, projectBuildDir(), p)
 		},

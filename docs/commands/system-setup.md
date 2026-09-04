@@ -28,8 +28,9 @@ attributed to the step that failed.
 
 <!-- @steps -->
 - **ESP-IDF** — clone the repo (`--recursive`) at the resolved path, check it out at the requested git
-  ref, then run its `install.sh esp32p4` (which brings the cross-compilers and a private Python
-  environment, so there is nothing to install by hand).
+  ref (re-pinning its submodules to that ref), then run its `install.sh esp32s3,esp32p4` — which brings
+  the cross-compilers for **both** the Xtensa (ESP32-S3) and RISC-V (ESP32-P4) families, plus a private
+  Python environment, so there is nothing to install by hand.
 - **php-esp32** — clone the firmware repo, check it out at the requested ref, then run its
   `scripts/fetch-php.sh` to download and patch the PHP source.
 <!-- @endsteps -->

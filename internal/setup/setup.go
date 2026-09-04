@@ -21,10 +21,22 @@ type Plan struct {
 const idfRepo = "https://github.com/espressif/esp-idf.git"
 const phpEsp32Repo = "https://github.com/php-baremetal/php-esp32.git"
 
+// idfTargets are the ESP-IDF install targets whose toolchains we install. It must cover both
+// architectures the firmware supports: esp32s3 pulls the Xtensa toolchain, esp32p4 the RISC-V one.
+// Installing only one (e.g. esp32p4) leaves a build for the other family failing with
+// "xtensa-esp32s3-elf-gcc ... not found in the PATH".
+const idfTargets = "esp32s3,esp32p4"
+
 func fetchOrCheckout(r Runner, repo, path, version string) error {
 	if r.Exists(path) {
 		if version != "" {
-			return r.Git("-C", path, "checkout", version)
+			if err := r.Git("-C", path, "checkout", version); err != nil {
+				return err
+			}
+			// Re-pin the submodules to the checked-out version. Skipping this leaves them at whatever
+			// commit was there before -- a classic source of "target mbedcrypto is not built" when a
+			// stale mbedtls 4.x sits under an IDF that expects 3.6.x.
+			return r.Git("-C", path, "submodule", "update", "--init", "--recursive")
 		}
 		return nil
 	}
@@ -32,7 +44,10 @@ func fetchOrCheckout(r Runner, repo, path, version string) error {
 		return err
 	}
 	if version != "" {
-		return r.Git("-C", path, "checkout", version)
+		if err := r.Git("-C", path, "checkout", version); err != nil {
+			return err
+		}
+		return r.Git("-C", path, "submodule", "update", "--init", "--recursive")
 	}
 	return nil
 }
@@ -45,7 +60,7 @@ func Run(r Runner, out io.Writer, plan Plan) error {
 	if err := fetchOrCheckout(r, idfRepo, plan.IdfPath, plan.IdfVersion); err != nil {
 		return fmt.Errorf("ESP-IDF step failed: %w", err)
 	}
-	if err := r.Shell(plan.IdfPath, platform.InstallScript(), "esp32p4"); err != nil {
+	if err := r.Shell(plan.IdfPath, platform.InstallScript(), idfTargets); err != nil {
 		return fmt.Errorf("ESP-IDF install.sh failed: %w", err)
 	}
 

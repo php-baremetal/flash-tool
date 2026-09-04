@@ -10,6 +10,7 @@ import (
 	"phpflash/internal/build"
 	"phpflash/internal/config"
 	"phpflash/internal/discover"
+	"phpflash/internal/platform"
 )
 
 func newFlashCmd() *cobra.Command {
@@ -24,6 +25,11 @@ func newFlashCmd() *cobra.Command {
 				return err
 			}
 			p := resolvePort(port, bc.port)
+			// Fail early with an actionable message when the port exists but isn't accessible
+			// (the common first-run "not in the dialout group" case), instead of a cryptic esptool error.
+			if err := platform.CheckPortAccess(p); err != nil {
+				return err
+			}
 			// Guard against flashing firmware built for one chip onto a different one (e.g. an
 			// esp32s3 board's image onto a connected P4). esptool would fail cryptically mid-flash;
 			// catch it up front with an actionable message. Skipped by --force, and never blocks on a

@@ -71,7 +71,7 @@ no serial device found (looked for /dev/ttyACM*, /dev/ttyUSB*). Plug the board i
 |---|---|---|
 | `no serial device found (looked for /dev/ttyACM*, /dev/ttyUSB*)` | No matching device node, most often a charge-only USB cable or the board not plugged in | Use a data-carrying USB cable; plug the board in; confirm a `/dev/ttyACM*` or `/dev/ttyUSB*` node appears. |
 | `flash`/`monitor` autodetect grabs the wrong device | Another USB-serial device enumerated first and no port was set | Pass `-p /dev/ttyACM0` (or the right node), or set `[board].port` in the config. |
-| The port node exists but access is denied | The user is not in the group that owns the serial device | Add your user to the serial/dialout group (host-dependent), or adjust the device permissions. |
+| `serial port /dev/ttyACM0 is not accessible (permission denied)` | The user is not in the `dialout` group that owns the serial device (a common first run on Linux) | `flash`/`monitor` check this up front and print the fix: `sudo chmod a+rw /dev/ttyACM0` for this port now, or `sudo usermod -aG dialout $USER` then log out/in (or `newgrp dialout`) permanently. |
 
 ## The toolchain or firmware is not installed
 
@@ -84,12 +84,24 @@ flag, config, env (`PHP_ESP32_DIR`, `IDF_PATH`) and default. A missing install f
 | `no php-esp32.config.toml in this directory (run \`phpflash init\` first)` | The command ran outside a project directory | `cd` into the project, or scaffold one with `phpflash init`. |
 | `php-esp32 not found at <path> (run \`phpflash system-setup\`)` | The firmware repo is not installed where phpflash looked | Run `phpflash system-setup`; or point at an existing checkout with `--php-esp32-path` / `[php-esp32] path` / `PHP_ESP32_DIR`. |
 | The build fails invoking `idf.py` (export.sh not found, toolchain missing) | ESP-IDF is not installed, or `--idf-path` / `IDF_PATH` points at the wrong place | Run `phpflash system-setup` (installs ESP-IDF and runs its `install.sh`); or set the correct `--idf-path`. |
+| `xtensa-esp32s3-elf-gcc ... is not a full path and was not found in the PATH` (or the RISC-V equivalent) | The toolchain for the board's architecture was never installed — an ESP-IDF `install.sh` run that omitted this target (the ESP32-S3 is Xtensa, the ESP32-P4 is RISC-V; they are different toolchains) | Install it: `~/esp/esp-idf/install.sh esp32s3` (or `esp32p4`), then `phpflash build --clean`. `phpflash system-setup` now installs both (`esp32s3,esp32p4`), so setups done through it are covered. |
 
 <!-- @callout variant="tip" title="system-setup is idempotent" -->
 Re-running `system-setup` is safe: an existing checkout is updated to the requested version rather
-than re-cloned, and an error is attributed to the step that failed (ESP-IDF's `install.sh`, or
-php-esp32's `fetch-php.sh`).
+than re-cloned (and its ESP-IDF submodules re-pinned to that version), and an error is attributed to
+the step that failed (ESP-IDF's `install.sh`, or php-esp32's `fetch-php.sh`).
 <!-- @endcallout -->
+
+## A build failure repeats after you fixed the environment
+
+CMake caches the results of a failed *configure* — a missing compiler shows up as
+`compiler identification is unknown` and is remembered — so the same error repeats even after you fix
+the toolchain, submodules or IDF version. Wipe the build tree and reconfigure.
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| The identical configure error repeats after fixing the toolchain / submodules / IDF version | The failed configure is cached in the project's `build/` tree (`CMakeCache.txt` remembers "compiler unknown") | `phpflash build --clean` (removes the build directory first, then reconfigures). A build failure also prints this hint. |
+| `Cannot specify link libraries for target "mbedcrypto" which is not built by this project` | The ESP-IDF submodules are off their pins — typically a stray `git submodule update --remote` left `mbedtls` at 4.x, where the `mbedcrypto` target was removed (IDF 5.5 expects mbedtls 3.6.x) | `cd $IDF_PATH && git submodule update --init --recursive`, then `phpflash build --clean`. Never update IDF submodules with `--remote`. `system-setup` re-pins them for you when it manages the checkout. |
 
 ## Wrong architecture / build target mismatch
 

@@ -63,6 +63,14 @@ The build tree and its generated `sdkconfig` live under the project's own `build
 per project, several projects can share one php-esp32 install with isolated, side-by-side builds, and a
 build never depends on what a shared directory held before.
 
+<!-- @callout variant="tip" title="--clean clears a poisoned cache" -->
+CMake caches the results of a failed *configure* (a missing compiler is remembered as "compiler
+identification is unknown"), so the same error can repeat even after you fix the toolchain, the ESP-IDF
+submodules, or the IDF version. `phpflash build --clean` removes the build directory first and
+reconfigures from scratch. A build failure also prints this hint.
+<!-- @endcallout -->
+
+
 <!-- @code-block language="text" label="tree — build output" -->
 ```text
 my-project/

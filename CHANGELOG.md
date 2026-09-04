@@ -1,5 +1,32 @@
 # Changelog
 
+## [v0.10.0]
+
+### Added
+- **Enum extension settings.** A manifest extension setting can now be an enum (`kind = "enum"` with a
+  list of `choices` and a `default`), and `build` emits it as `-D<FLAG>=<value>` rather than the boolean
+  `-D<FLAG>=ON/OFF`. The first use is the SQLite API selector that pairs with php-esp32 1.0's `ext/sqlite3`
+  support: `[extensions.sqlite] type = "pdo-sqlite" | "sqlite3"` (default `pdo-sqlite`), passed as
+  `-DPHP_EXT_SQLITE_API`. Interactive `init` offers the choices; an invalid or absent value falls back to
+  the setting's default, and the generated config keeps the chosen value.
+- **`build --clean`.** Removes the build directory before building, to clear a poisoned CMake cache — a
+  failed configure otherwise caches negative results (e.g. "compiler identification is unknown") and
+  repeats them even after the environment is fixed. A build failure now also hints to retry with it.
+
+### Fixed
+- **`system-setup` installs both toolchains.** It ran `install.sh esp32p4`, installing only the RISC-V
+  toolchain; a later build for an ESP32-S3 board then failed with `xtensa-esp32s3-elf-gcc ... not found
+  in the PATH`. It now installs `esp32s3,esp32p4`, covering both the Xtensa and RISC-V toolchains the
+  firmware's boards need.
+- **`system-setup` re-pins ESP-IDF submodules on checkout.** After checking out an IDF version it now
+  runs `git submodule update --init --recursive`, so the submodules match the pinned version instead of
+  being left at stale commits (the cause of "target mbedcrypto is not built" when a stray mbedtls 4.x is
+  checked out under an IDF that expects 3.6.x).
+- **Clear error when the serial port isn't accessible.** `flash` and `monitor` now check the port up
+  front (via `access(2)`, without opening it, so the board isn't reset) and, on a permission failure,
+  print the fix (`sudo chmod a+rw <port>` for now, `sudo usermod -aG dialout $USER` permanently) instead
+  of a cryptic `Path '/dev/ttyACM0' is not readable` from esptool.
+
 ## [v0.9.1]
 
 ### Added
