@@ -83,6 +83,15 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 		freq = fmt.Sprintf("%d", cfg.Board.CPUFreqMHz)
 	}
 	dargs = append(dargs, "-DPHP_CPU_FREQ_MHZ="+freq)
+
+	// power_save: esp_pm automatic light sleep. Always emitted ON/OFF so a reused build dir can't
+	// keep a stale value.
+	powerSave := "OFF"
+	if cfg.PowerSave {
+		powerSave = "ON"
+	}
+	dargs = append(dargs, "-DPHP_POWER_SAVE="+powerSave)
+
 	for _, n := range sorted {
 		state := "OFF"
 		if on[n] {
@@ -154,6 +163,20 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 		}
 	}
 	dargs = append(dargs, fmt.Sprintf("-DPHP_S3_RGB_GPIO=%d", rgbPin))
+	// i2c drivers ([extensions.i2c] drivers = [...]): a semicolon list the php_ext_i2c component turns
+	// into its generated driver table. Always passed (empty when none) so a reused build dir can't
+	// keep a stale value.
+	i2cDrivers := ""
+	if ext, ok := cfg.Extensions["i2c"]; ok {
+		i2cDrivers = ext.Options["drivers"]
+	}
+	dargs = append(dargs, "-DPHP_I2C_DRIVERS="+i2cDrivers)
+	// spi drivers ([extensions.spi] drivers = [...]): same mechanism as the i2c drivers.
+	spiDrivers := ""
+	if ext, ok := cfg.Extensions["spi"]; ok {
+		spiDrivers = ext.Options["drivers"]
+	}
+	dargs = append(dargs, "-DPHP_SPI_DRIVERS="+spiDrivers)
 	return dargs, eff.Fetches, nil
 }
 

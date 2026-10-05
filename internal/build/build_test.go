@@ -37,10 +37,10 @@ func TestArgsDeterministic(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{
-		"-DBOARD=esp32-p4-pico", "-DPHP_VERSION=8.3.32", "-DPHP_CPU_FREQ_MHZ=",
+		"-DBOARD=esp32-p4-pico", "-DPHP_VERSION=8.3.32", "-DPHP_CPU_FREQ_MHZ=", "-DPHP_POWER_SAVE=OFF",
 		"-DPHP_EXT_DATE=OFF", "-DPHP_EXT_DATE_MINIMAL_TZ=OFF", "-DPHP_EXT_SQLITE=ON",
 		"-DPHP_STORAGE_MICROSD=ON", "-DPHP_STORAGE_RESERVE_KB=0", "-DPHP_STORE_KB=0",
-		"-DPHP_S3_RGB_GPIO=48",
+		"-DPHP_S3_RGB_GPIO=48", "-DPHP_I2C_DRIVERS=", "-DPHP_SPI_DRIVERS=",
 	}
 	if !reflect.DeepEqual(dargs, want) {
 		t.Errorf("dargs = %v\nwant %v", dargs, want)

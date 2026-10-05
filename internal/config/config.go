@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -35,6 +36,7 @@ type Config struct {
 	Env         EnvConfig            `toml:"env"`
 	Store       StoreConfig          `toml:"store"`
 	WebServer   WebServerConfig      `toml:"web-server"`
+	PowerSave   bool                 `toml:"power_save"` // esp_pm automatic light sleep (default false)
 }
 
 // WebServerConfig holds options for the `web-server` project type. Init is an optional PHP script
@@ -160,6 +162,19 @@ func applyFile(path string, c *Config) error {
 					ext.Options = map[string]string{}
 				}
 				ext.Options[k] = strconv.FormatInt(val, 10)
+			case []interface{}:
+				// Array settings (e.g. i2c drivers = ["ssd1306","mpu6050"]) land in Options as a
+				// semicolon-joined string, the form the build passes on as a CMake list.
+				var parts []string
+				for _, e := range val {
+					if s, ok := e.(string); ok {
+						parts = append(parts, s)
+					}
+				}
+				if ext.Options == nil {
+					ext.Options = map[string]string{}
+				}
+				ext.Options[k] = strings.Join(parts, ";")
 			}
 		}
 		c.Extensions[extKey] = ext
