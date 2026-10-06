@@ -96,6 +96,42 @@ func ParseChipInfo(out string) ChipInfo {
 	return c
 }
 
+// SecurityInfo is the chip's hardware-protection eFuse state: whether Flash Encryption and Secure
+// Boot v2 are burned in.
+type SecurityInfo struct {
+	FlashEncryption bool
+	SecureBoot      bool
+}
+
+// parseSecurity reads espefuse's summary text for the two security fuses. It matches the fuse's VALUE
+// (after the "="), not the row's description -- the SPI_BOOT_CRYPT_CNT line literally says "Enables
+// flash encryption ...", so a naive "Enable" search would misread a disabled chip.
+func parseSecurity(raw string) SecurityInfo {
+	var s SecurityInfo
+	for _, line := range strings.Split(raw, "\n") {
+		if strings.Contains(line, "SPI_BOOT_CRYPT_CNT") && strings.Contains(line, "= Enable") {
+			s.FlashEncryption = true
+		}
+		if strings.Contains(line, "SECURE_BOOT_EN") && strings.Contains(line, "= True") {
+			s.SecureBoot = true
+		}
+	}
+	return s
+}
+
+// ProbeSecurity reads the security eFuses via espefuse (sourcing ESP-IDF's export.sh so espefuse is on
+// PATH). Like ProbeChip it briefly resets the board into download mode. An error means the state could
+// not be read (treat it as unknown rather than "off").
+func ProbeSecurity(idfPath, port string) (SecurityInfo, error) {
+	script := ". " + shquote(filepath.Join(idfPath, "export.sh")) +
+		" >/dev/null 2>&1 && espefuse.py --port " + shquote(port) + " summary"
+	out, err := exec.Command("bash", "-c", script).CombinedOutput()
+	if err != nil {
+		return SecurityInfo{}, fmt.Errorf("espefuse probe failed: %w", err)
+	}
+	return parseSecurity(string(out)), nil
+}
+
 // ProbeChip runs esptool against the port (sourcing ESP-IDF's export.sh from idfPath so esptool is
 // on PATH) and parses what it reports. It talks to the ROM/stub loader, so it briefly resets the
 // board into download mode and hard-resets it after. Returns the parsed info and the raw output
@@ -126,8 +162,8 @@ type DiscoverFW struct {
 	Revision   string
 	PSRAM      string // "32MB" | "none"
 	MAC        string
-	Ethernet   bool   // board_network_up() brought the link up (needs the cable)
-	EthernetNA bool   // this board has no network hardware ("n/a")
+	Ethernet   bool // board_network_up() brought the link up (needs the cable)
+	EthernetNA bool // this board has no network hardware ("n/a")
 	IP         string
 	MicroSD    bool   // a card mounted
 	MicroSDNA  bool   // this board has no card slot ("n/a")

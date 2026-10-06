@@ -117,6 +117,15 @@ func newDiscoverCmd() *cobra.Command {
 				fmt.Fprintf(out, "Radio:    %s (built into the chip)\n", radio)
 			}
 
+			// Hardware protection state (the eFuses the `secure` / `secure_boot` flags burn).
+			if sec, err := discover.ProbeSecurity(idf, target); err == nil {
+				fmt.Fprintf(out, "Flash encryption: %s\n", enabledStr(sec.FlashEncryption))
+				fmt.Fprintf(out, "Secure boot:      %s\n", enabledStr(sec.SecureBoot))
+				if sec.FlashEncryption || sec.SecureBoot {
+					fmt.Fprintln(out, "  (protected board: flash with `phpflash flash` -- it writes encrypted; with secure boot, updates need the signing key)")
+				}
+			}
+
 			// Board-first mapping: which supported boards fit this chip?
 			families, _ := manifest.Families(phpDir)
 			fam := discover.FamilyForTarget(families, info.Target)
@@ -294,6 +303,13 @@ func yesno(b bool) string {
 		return "yes"
 	}
 	return "no"
+}
+
+func enabledStr(b bool) string {
+	if b {
+		return "enabled"
+	}
+	return "not set"
 }
 
 // usbDesc renders a port's USB identity, skipping the strings the device didn't expose.

@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -73,25 +70,15 @@ func newFlashCmd() *cobra.Command {
 	return c
 }
 
-// chipFlashEncrypted reports whether the connected chip already has Flash Encryption burned (eFuse
-// SPI_BOOT_CRYPT_CNT enabled), so flashing must go through encrypted-flash. Best-effort: any probe
-// failure returns false and the flash proceeds as plaintext (the chip/idf.py stay the backstop).
+// chipFlashEncrypted reports whether the connected chip already has Flash Encryption burned, so the
+// flash must go through encrypted-flash. Best-effort: any probe failure returns false and the flash
+// proceeds as plaintext (the chip/idf.py stay the backstop).
 func chipFlashEncrypted(idfPath, port string) bool {
 	if port == "" {
 		return false
 	}
-	script := ". " + shq(filepath.Join(idfPath, "export.sh")) +
-		" >/dev/null 2>&1 && espefuse.py --port " + shq(port) + " summary"
-	out, err := exec.Command("bash", "-c", script).CombinedOutput()
-	if err != nil {
-		return false
-	}
-	for _, line := range strings.Split(string(out), "\n") {
-		if strings.Contains(line, "SPI_BOOT_CRYPT_CNT") && strings.Contains(line, "Enable") {
-			return true
-		}
-	}
-	return false
+	sec, err := discover.ProbeSecurity(idfPath, port)
+	return err == nil && sec.FlashEncryption
 }
 
 // checkChipMatchesBoard probes the connected chip and refuses the flash if its ESP-IDF target
