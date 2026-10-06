@@ -444,13 +444,25 @@ func TestBuildRunsFetchesThenIDF(t *testing.T) {
 
 func TestFlashAppendsPortAndFlash(t *testing.T) {
 	f := &fakeInvoker{}
-	if err := Flash(f, io.Discard, "/proj/build", []string{"-DBOARD=x"}, "/dev/ttyACM0"); err != nil {
+	if err := Flash(f, io.Discard, "/proj/build", []string{"-DBOARD=x"}, "/dev/ttyACM0", false); err != nil {
 		t.Fatal(err)
 	}
 	got := f.idf[0]
 	want := []string{"-B", "/proj/build/compiled", "-DBOARD=x", "-p", "/dev/ttyACM0", "flash"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("flash args = %v, want %v", got, want)
+	}
+}
+
+func TestFlashEncrypted(t *testing.T) {
+	f := &fakeInvoker{}
+	if err := Flash(f, io.Discard, "/proj/build", []string{"-DBOARD=x"}, "/dev/ttyACM0", true); err != nil {
+		t.Fatal(err)
+	}
+	got := f.idf[0]
+	want := []string{"-B", "/proj/build/compiled", "-DBOARD=x", "-p", "/dev/ttyACM0", "encrypted-flash"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("encrypted flash args = %v, want %v", got, want)
 	}
 }
 

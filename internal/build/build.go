@@ -520,15 +520,23 @@ func Build(inv Invoker, out io.Writer, buildDir, sdkconfig string, dargs, fetche
 	return nil
 }
 
-// Flash runs `idf.py -B <buildDir>/compiled <dargs> [-p port] flash` (builds first if needed).
-func Flash(inv Invoker, out io.Writer, buildDir string, dargs []string, port string) error {
+// Flash runs `idf.py -B <buildDir>/compiled <dargs> [-p port] flash` (builds first if needed). With
+// `encrypted` it runs `encrypted-flash` instead -- required once the chip has Flash Encryption burned,
+// so the images are written through the chip's hardware encryption (and the build already signed them
+// for Secure Boot). The first flash of a secure build still uses plain `flash`: the chip is virgin and
+// encrypts itself on first boot.
+func Flash(inv Invoker, out io.Writer, buildDir string, dargs []string, port string, encrypted bool) error {
+	target := "flash"
+	if encrypted {
+		target = "encrypted-flash"
+	}
 	args := []string{"-B", compiledDir(buildDir)}
 	args = append(args, dargs...)
 	if port != "" {
 		args = append(args, "-p", port)
 	}
-	args = append(args, "flash")
-	fmt.Fprintln(out, "==> idf.py flash")
+	args = append(args, target)
+	fmt.Fprintf(out, "==> idf.py %s\n", target)
 	return inv.IDF(args...)
 }
 

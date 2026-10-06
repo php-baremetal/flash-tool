@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -39,8 +42,20 @@ func newFlashCmd() *cobra.Command {
 					return err
 				}
 			}
+			// A secure project writes through the chip's hardware encryption once the key is burned.
+			// The first flash of a virgin chip is plaintext (it encrypts itself on first boot); only a
+			// chip that already has Flash Encryption needs encrypted-flash.
+			encrypted := false
+			if bc.secure {
+				if chipFlashEncrypted(bc.idfPath, p) {
+					encrypted = true
+					fmt.Fprintln(os.Stdout, "secure: the chip is already encrypted -> using encrypted-flash")
+				} else {
+					fmt.Fprintln(os.Stdout, "secure: first flash (plaintext; the chip encrypts itself on first boot)")
+				}
+			}
 			inv := build.ExecInvoker{PhpEsp32Dir: bc.phpDir, IdfPath: bc.idfPath, Out: os.Stdout}
-			if err := build.Flash(inv, os.Stdout, bc.buildDir, bc.dargs, p); err != nil {
+			if err := build.Flash(inv, os.Stdout, bc.buildDir, bc.dargs, p, encrypted); err != nil {
 				return err
 			}
 			// A microsd project ships no embedded image; wipe the `storage` partition so a leftover
@@ -56,6 +71,27 @@ func newFlashCmd() *cobra.Command {
 	c.Flags().StringVarP(&port, "port", "p", "", "serial port (empty = /dev/ttyACM*, then autodetect)")
 	c.Flags().BoolVar(&force, "force", false, "flash even if the connected chip doesn't match the project's board")
 	return c
+}
+
+// chipFlashEncrypted reports whether the connected chip already has Flash Encryption burned (eFuse
+// SPI_BOOT_CRYPT_CNT enabled), so flashing must go through encrypted-flash. Best-effort: any probe
+// failure returns false and the flash proceeds as plaintext (the chip/idf.py stay the backstop).
+func chipFlashEncrypted(idfPath, port string) bool {
+	if port == "" {
+		return false
+	}
+	script := ". " + shq(filepath.Join(idfPath, "export.sh")) +
+		" >/dev/null 2>&1 && espefuse.py --port " + shq(port) + " summary"
+	out, err := exec.Command("bash", "-c", script).CombinedOutput()
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.Contains(line, "SPI_BOOT_CRYPT_CNT") && strings.Contains(line, "Enable") {
+			return true
+		}
+	}
+	return false
 }
 
 // checkChipMatchesBoard probes the connected chip and refuses the flash if its ESP-IDF target

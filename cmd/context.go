@@ -63,6 +63,7 @@ type buildContext struct {
 	storageType string
 	board       string // the configured board key, e.g. "esp32-s3-eth"
 	idfTarget   string // the board family's ESP-IDF target, e.g. "esp32s3" ("" if unresolved)
+	secure      bool   // the project enables Flash Encryption and/or Secure Boot (flash writes encrypted)
 }
 
 func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
@@ -171,5 +172,6 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 		storageType: cfg.StorageType,
 		board:       cfg.Board.Target,
 		idfTarget:   idfTarget,
+		secure:      cfg.Secure || cfg.SecureBoot,
 	}, nil
 }
