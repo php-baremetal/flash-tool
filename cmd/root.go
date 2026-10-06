@@ -26,6 +26,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newDiscoverCmd())
 	root.AddCommand(newExtCmd())
 	root.AddCommand(newPartitionsCmd())
+	root.AddCommand(newSecureKeyCmd())
 	return root
 }
 

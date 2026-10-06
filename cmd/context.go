@@ -118,6 +118,14 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 		if arg, ok := build.ProjectExtsArg(wd); ok {
 			dargs = append(dargs, arg)
 		}
+		// Secure Boot v2: provision (or reuse) the per-unit signing key and point the build at it.
+		if cfg.SecureBoot {
+			arg, err := resolveSecureBootKey(cfg, wd, idfPath)
+			if err != nil {
+				return nil, err
+			}
+			dargs = append(dargs, arg)
+		}
 		// A project can override the board's fixed partition table by shipping its own
 		// partitions.csv (see `phpflash partitions publish`); when present it wins.
 		if arg, ok := build.PartitionsArg(wd); ok {

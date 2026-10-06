@@ -37,6 +37,12 @@ type Config struct {
 	Store       StoreConfig          `toml:"store"`
 	WebServer   WebServerConfig      `toml:"web-server"`
 	PowerSave   bool                 `toml:"power_save"` // esp_pm automatic light sleep (default false)
+	Secure      bool                 `toml:"secure"`     // Flash Encryption (default false)
+
+	// Secure Boot v2: when SecureBoot is set, the build auto-provisions a per-unit signing key at
+	// SecureBootKeysDir/<MAC>.pem (default ./deploys) and enables secure boot pointing at it.
+	SecureBoot        bool   `toml:"secure_boot"`
+	SecureBootKeysDir string `toml:"secure_boot_keys_dir"`
 }
 
 // WebServerConfig holds options for the `web-server` project type. Init is an optional PHP script

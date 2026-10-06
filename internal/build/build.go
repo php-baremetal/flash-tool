@@ -92,6 +92,22 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 	}
 	dargs = append(dargs, "-DPHP_POWER_SAVE="+powerSave)
 
+	// secure: Flash Encryption. Marks the embedded 'storage' partition encrypted and turns on the
+	// secure sdkconfig. Always emitted ON/OFF (stale build dirs).
+	secure := "OFF"
+	if cfg.Secure {
+		secure = "ON"
+	}
+	dargs = append(dargs, "-DPHP_SECURE="+secure)
+
+	// secure_boot: Secure Boot v2. The per-unit signing key path is resolved and appended separately
+	// (it needs the board MAC / the deploys dir), so Args only emits the ON/OFF toggle here.
+	secureBoot := "OFF"
+	if cfg.SecureBoot {
+		secureBoot = "ON"
+	}
+	dargs = append(dargs, "-DPHP_SECURE_BOOT="+secureBoot)
+
 	for _, n := range sorted {
 		state := "OFF"
 		if on[n] {
