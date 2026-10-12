@@ -98,7 +98,7 @@ phpflash system-setup --idf-path ~/toolchains/esp-idf --php-esp32-path ~/src/php
 steps yourself: clone [ESP-IDF](https://github.com/espressif/esp-idf) at the target version and run its
 `install.sh`, then clone [php-esp32](https://github.com/php-baremetal/php-esp32) and run
 `scripts/fetch-php.sh`. Point [`phpflash build`](./build.md) at the results with `--idf-path` /
-`--php-esp32-path`, the `[esp-idf]` / `[php-esp32]` config tables, or the `IDF_PATH` / `PHP_ESP32_DIR`
+`--php-esp32-path`, the `[esp32.idf]` / `[esp32.sdk]` config tables, or the `IDF_PATH` / `PHP_ESP32_DIR`
 environment variables.
 
 Once this has run, scaffold a project with [`phpflash init`](./init.md) and build it with

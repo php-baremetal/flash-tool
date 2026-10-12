@@ -33,14 +33,14 @@ output so it is easy to reason about and easy to version.
 <!-- @code-block language="text" label="tree — scaffolded project" -->
 ```text
 my-project/
-├── php-esp32.config.toml   the project config
+├── php-baremetal.config.toml   the project config
 ├── .gitignore              ignores build/, sdkconfig, vendor/, the local override, .env
 └── project-src/
     └── index.php           the starter script (hello or blink)
 ```
 <!-- @endcode-block -->
 
-- **`php-esp32.config.toml`** — the project config, rendered from your answers. It is meant to be read
+- **`php-baremetal.config.toml`** — the project config, rendered from your answers. It is meant to be read
   and edited; see [the config file](#the-config-file) below.
 - **`project-src/index.php`** — the entry script, filled from the `hello` or `blink` starter. The
   folder name comes from `[php] src` (default `project-src`) and the file name from `[php] entry`
@@ -53,13 +53,13 @@ my-project/
 /build/
 /sdkconfig
 /project-src/vendor/
-/php-esp32.config.local.toml
+/php-baremetal.config.local.toml
 /.env
 ```
 <!-- @endcode-block -->
 
 <!-- @callout variant="info" title="init refuses to clobber an existing config" -->
-If `php-esp32.config.toml` already exists in the target directory, `init` stops rather than overwrite
+If `php-baremetal.config.toml` already exists in the target directory, `init` stops rather than overwrite
 it. Pass `--force` to remove the old config first and re-scaffold.
 <!-- @endcallout -->
 
@@ -115,29 +115,29 @@ Accept all defaults and ask nothing. Produces a `microsd`, `init-loop` project w
 extensions, an empty serial port and the `hello` starter, on the `--board` board.
 <!-- @endparam -->
 <!-- @param name="--force" type="bool" -->
-Overwrite an existing `php-esp32.config.toml` (removed before re-scaffolding).
+Overwrite an existing `php-baremetal.config.toml` (removed before re-scaffolding).
 <!-- @endparam -->
 <!-- @endparams -->
 
 ## The config file
 
-`init` renders a commented `php-esp32.config.toml` from your answers. A minimal one looks like this:
+`init` renders a commented `php-baremetal.config.toml` from your answers. A minimal one looks like this:
 
-<!-- @code-block language="toml" label="php-esp32.config.toml" -->
+<!-- @code-block language="toml" label="php-baremetal.config.toml" -->
 ```toml
 name = "my-project"
-storage_type = "microsd"   # where the PHP source lives
 type = "init-loop"         # execution model
 
-[board]
+[esp32]
 target = "esp32-p4-pico"
 port   = ""                # empty = autodetect at flash time
+storage_type = "microsd"   # where the PHP source lives
 
-[esp-idf]
+[esp32.idf]
 path    = ""
 version = ""
 
-[php-esp32]
+[esp32.sdk]
 path    = ""
 version = ""
 
@@ -149,14 +149,14 @@ version = ""               # PHP version to build (e.g. "8.5.9"); empty = the re
 <!-- @endcode-block -->
 
 Each optional extension you enabled becomes an `[extensions.<key>]` table with `enabled = true` plus
-any settings you turned on. The `[esp-idf]` and `[php-esp32]` tables (each `path` + `version`) let a
+any settings you turned on. The `[esp32.idf]` and `[esp32.sdk]` tables (each `path` + `version`) let a
 project pin a specific toolchain or firmware checkout; leave them empty to use the `system-setup`
 defaults. The rendered file also carries commented `[env]`, `[store]` and `[web-server]` sections you
 can uncomment.
 
 <!-- @callout variant="tip" title="Keep machine-specific settings out of git" -->
 For tweaks that should not be committed — a serial port, a local toolchain path — put them in a
-`php-esp32.config.local.toml` next to the main file. Every command overlays that file when present,
+`php-baremetal.config.local.toml` next to the main file. Every command overlays that file when present,
 and the scaffolded `.gitignore` already excludes it. `init` never creates it.
 <!-- @endcallout -->
 

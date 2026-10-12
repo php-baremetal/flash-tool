@@ -17,7 +17,7 @@ not, start with [Installation](./installation.md).
 
 ## The mental model
 
-A *project* is two things: a config file, `php-esp32.config.toml`, and a `project-src/` folder that
+A *project* is two things: a config file, `php-baremetal.config.toml`, and a `project-src/` folder that
 holds your PHP. The config picks the board, where the code lives, how it runs, and which extensions to
 compile; `project-src/` is the deployable — it is what gets copied to a microSD card or baked into the
 firmware image. `phpflash init` writes both for you, plus a `.gitignore`.
@@ -25,7 +25,7 @@ firmware image. `phpflash init` writes both for you, plus a `.gitignore`.
 <!-- @code-block language="text" label="tree — what init scaffolds" -->
 ```text
 my-project/
-├── php-esp32.config.toml   the project config
+├── php-baremetal.config.toml   the project config
 ├── .gitignore              ignores build/, sdkconfig, vendor/, the local override, .env
 └── project-src/
     └── index.php           your entry script (the chosen starter)
@@ -83,7 +83,7 @@ offers what the firmware can actually build. In order, it asks:
 
 The flags let you skip or steer the prompts: `--yes` accepts every default and asks nothing, `--board
 <id>` preselects a board, `--name <name>` sets the project name, and `--force` overwrites an existing
-`php-esp32.config.toml`.
+`php-baremetal.config.toml`.
 
 <!-- @callout variant="note" title="If php-esp32 is not installed yet" -->
 When `init` cannot find an installed php-esp32, it prints
@@ -134,17 +134,17 @@ function loop($tick) {
 
 ### The config it writes
 
-`init` writes `php-esp32.config.toml`. It is meant to be read and edited — a short one looks like this:
+`init` writes `php-baremetal.config.toml`. It is meant to be read and edited — a short one looks like this:
 
-<!-- @code-block language="toml" label="php-esp32.config.toml" -->
+<!-- @code-block language="toml" label="php-baremetal.config.toml" -->
 ```toml
 name = "my-project"
-storage_type = "microsd"   # where the PHP source lives
 type = "init-loop"         # execution model
 
-[board]
+[esp32]
 target = "esp32-p4-pico"
 port   = ""                # empty = autodetect at flash time
+storage_type = "microsd"   # where the PHP source lives
 
 [php]
 src     = "project-src"    # PHP source folder (copied to the microSD / embedded)
@@ -154,11 +154,11 @@ version = ""               # PHP version to build; empty = the repo default
 <!-- @endcode-block -->
 
 An enabled optional extension gets its own `[extensions.<name>]` table with `enabled = true` and any
-settings you turned on. The scaffold also leaves `[esp-idf]` and `[php-esp32]` tables (each with
+settings you turned on. The scaffold also leaves `[esp32.idf]` and `[esp32.sdk]` tables (each with
 `path` and `version`) so a project can pin a specific toolchain or firmware checkout.
 
 <!-- @callout variant="tip" title="Keep machine-specific settings out of git" -->
-A sibling `php-esp32.config.local.toml`, if present, is overlaid on top of the main config for
+A sibling `php-baremetal.config.local.toml`, if present, is overlaid on top of the main config for
 machine-specific tweaks such as a serial port or a local toolchain path. The scaffolded `.gitignore`
 already excludes it, along with `build/`, `sdkconfig`, `project-src/vendor/`, and `.env`.
 <!-- @endcallout -->

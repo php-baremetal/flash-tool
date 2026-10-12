@@ -18,17 +18,10 @@ func TestFamiliesAndBoards(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(boards) != 1 || boards[0].Key != "esp32-p4-pico" || boards[0].Name != "ESP32-P4-Pico" {
+	if len(boards) != 1 || boards[0].Key != "waveshare-esp32-p4-pico" || boards[0].Name != "ESP32-P4-Pico" {
 		t.Fatalf("boards = %+v", boards)
 	}
-}
-
-func TestTargetForBoard(t *testing.T) {
-	dir := filepath.Join("testdata", "php-esp32")
-	if target, ok := TargetForBoard(dir, "esp32-p4-pico"); !ok || target != "esp32p4" {
-		t.Errorf("TargetForBoard(esp32-p4-pico) = %q, %v; want esp32p4, true", target, ok)
-	}
-	if target, ok := TargetForBoard(dir, "does-not-exist"); ok || target != "" {
-		t.Errorf("TargetForBoard(unknown) = %q, %v; want \"\", false", target, ok)
+	if !boards[0].MicroSD || boards[0].Network != "none" {
+		t.Errorf("preset peripherals = %+v", boards[0])
 	}
 }

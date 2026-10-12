@@ -9,12 +9,12 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-const FileName = "php-esp32.config.toml"
+const FileName = "php-baremetal.config.toml"
 
 // LocalFileName is an optional per-project override, applied on top of FileName if present.
 // init never creates it and it's git-ignored, so a developer can keep local tweaks (serial
 // port, toolchain paths, ...) out of the committed config.
-const LocalFileName = "php-esp32.config.local.toml"
+const LocalFileName = "php-baremetal.config.local.toml"
 
 // PartitionsFileName is the optional per-project partition table. When a file with this name
 // sits next to the config, `phpflash build` uses it as the fixed-partition spec instead of the
@@ -22,27 +22,51 @@ const LocalFileName = "php-esp32.config.local.toml"
 // appended). Create one from the board's defaults with `phpflash partitions publish`.
 const PartitionsFileName = "partitions.csv"
 
+// Config is a backend-neutral project config. The portable header (name, type, [php], [env],
+// [extensions], [store], [web-server]) describes the app itself; a per-backend block carries board
+// selection, toolchain and build-time hardware bring-up. Today the only backend block is [esp32];
+// the same project can grow an [stm32]/[nxp] block later, and only the matching backend's tool reads
+// its block. The portable extensions are the app's intent -- each backend provides them through its
+// own HAL and validates availability.
 type Config struct {
-	Name        string               `toml:"name"`
-	StorageType string               `toml:"storage_type"`
-	Type        string               `toml:"type"`
-	Board       BoardConfig          `toml:"board"`
-	EspIdf      SourceConfig         `toml:"esp-idf"`
-	PhpEsp32    SourceConfig         `toml:"php-esp32"`
-	Storage     StorageConfig        `toml:"storage"`
-	Extensions  map[string]Extension `toml:"extensions"`
-	Php         PhpConfig            `toml:"php"`
-	Network     NetworkConfig        `toml:"network"`
-	Env         EnvConfig            `toml:"env"`
-	Store       StoreConfig          `toml:"store"`
-	WebServer   WebServerConfig      `toml:"web-server"`
-	PowerSave   bool                 `toml:"power_save"` // esp_pm automatic light sleep (default false)
-	Secure      bool                 `toml:"secure"`     // Flash Encryption (default false)
+	// Portable -- the project, any backend.
+	Name       string               `toml:"name"`
+	Type       string               `toml:"type"`
+	Php        PhpConfig            `toml:"php"`
+	Env        EnvConfig            `toml:"env"`
+	Extensions map[string]Extension `toml:"extensions"`
+	Store      StoreConfig          `toml:"store"`
+	WebServer  WebServerConfig      `toml:"web-server"`
+
+	// Per-backend.
+	Esp32 Esp32Config `toml:"esp32"`
+}
+
+// Esp32Config is the ESP32 backend block: board selection, toolchain checkouts, build-time hardware
+// bring-up and security/power -- everything specific to building this project for Espressif chips.
+type Esp32Config struct {
+	// Board selection: by Preset (a vendor-model preset over a chip/mode) or by Family (the mode's
+	// generic preset). Exactly one is used, Preset first.
+	Preset string `toml:"preset"`
+	Family string `toml:"family"`
+	Port   string `toml:"port"`
+	// CPUFreqMHz overrides the CPU clock (e.g. 400 on the ESP32-P4, default 360). Empty/0 = the
+	// board default. Passed to the firmware as -DPHP_CPU_FREQ_MHZ.
+	CPUFreqMHz int `toml:"cpu_freq_mhz"`
+
+	StorageType string `toml:"storage_type"`
+	PowerSave   bool   `toml:"power_save"` // esp_pm automatic light sleep (default false)
+	Secure      bool   `toml:"secure"`     // Flash Encryption (default false)
 
 	// Secure Boot v2: when SecureBoot is set, the build auto-provisions a per-unit signing key at
 	// SecureBootKeysDir/<MAC>.pem (default ./deploys) and enables secure boot pointing at it.
 	SecureBoot        bool   `toml:"secure_boot"`
 	SecureBootKeysDir string `toml:"secure_boot_keys_dir"`
+
+	Idf     SourceConfig  `toml:"idf"`     // ESP-IDF checkout
+	Sdk     SourceConfig  `toml:"sdk"`     // php-esp32 backend checkout
+	Storage StorageConfig `toml:"storage"` // build-time storage bring-up (microSD mount)
+	Network NetworkConfig `toml:"network"` // build-time network bring-up + outbound DNS
 }
 
 // WebServerConfig holds options for the `web-server` project type. Init is an optional PHP script
@@ -87,14 +111,6 @@ type StorageConfig struct {
 	ReserveKB int `toml:"reserve_kb"`
 }
 
-type BoardConfig struct {
-	Target string `toml:"target"`
-	Port   string `toml:"port"`
-	// CPUFreqMHz overrides the CPU clock (e.g. 400 on the ESP32-P4, default 360). Empty/0 = the
-	// board default. Passed to the firmware as -DPHP_CPU_FREQ_MHZ.
-	CPUFreqMHz int `toml:"cpu_freq_mhz"`
-}
-
 type SourceConfig struct {
 	Path    string `toml:"path"`
 	Version string `toml:"version"`
@@ -114,8 +130,8 @@ type PhpConfig struct {
 	Version string `toml:"version"`
 }
 
-// Load reads a php-esp32.config.toml, then overlays an optional sibling
-// php-esp32.config.local.toml if it exists: keys the local file sets win, the rest keep the
+// Load reads a php-baremetal.config.toml, then overlays an optional sibling
+// php-baremetal.config.local.toml if it exists: keys the local file sets win, the rest keep the
 // base value. The local file is optional -- absent means "just the base config".
 func Load(path string) (*Config, error) {
 	c := &Config{}
@@ -163,7 +179,7 @@ func applyFile(path string, c *Config) error {
 				}
 				ext.Options[k] = val
 			case int64:
-				// Numeric settings (e.g. s3_onboard_rgb pin = 48) land in Options as a string.
+				// Numeric settings (e.g. an extension's `pin = 5`) land in Options as a string.
 				if ext.Options == nil {
 					ext.Options = map[string]string{}
 				}

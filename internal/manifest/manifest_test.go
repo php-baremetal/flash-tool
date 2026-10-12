@@ -13,7 +13,7 @@ func TestLoadRepo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.DefaultVersion != "8.3.32" || r.DefaultBoard != "esp32-p4/esp32-p4-pico" {
+	if r.DefaultVersion != "8.3.32" || r.DefaultBoard != "esp32-p4" {
 		t.Errorf("repo = %+v", r)
 	}
 }
@@ -35,16 +35,6 @@ func TestLoadManifest(t *testing.T) {
 	if date == nil || date.Flag != "PHP_EXT_DATE=ON" || len(date.Settings) != 1 ||
 		date.Settings[0].Flag != "PHP_EXT_DATE_MINIMAL_TZ=ON" {
 		t.Errorf("date extension parsed wrong: %+v", date)
-	}
-}
-
-func TestLoadBoard(t *testing.T) {
-	b, err := LoadBoard(dir(t), "esp32-p4/esp32-p4-pico")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if b.Family != "esp32-p4" || len(b.StorageTypes) != 2 || len(b.ProjectTypes) != 2 {
-		t.Errorf("board = %+v", b)
 	}
 }
 

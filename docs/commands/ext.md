@@ -48,9 +48,9 @@ underscores. A name that does not match is rejected with an explanation rather t
 that will not link.
 
 <!-- @callout variant="note" title="Run it from the project directory" -->
-`ext new` writes into `./firmware/exts/`, so run it where your `php-esp32.config.toml` lives. If no
+`ext new` writes into `./firmware/exts/`, so run it where your `php-baremetal.config.toml` lives. If no
 config file is found in the current directory it still scaffolds, but first prints
-`note: no php-esp32.config.toml here -- run this from your project directory`. Nothing about the
+`note: no php-baremetal.config.toml here -- run this from your project directory`. Nothing about the
 scaffold depends on the config; the note only guards against writing the file in the wrong place.
 <!-- @endcallout -->
 
@@ -61,7 +61,7 @@ scaffold depends on the config; the note only guards against writing the file in
 <!-- @code-block language="text" label="tree — after phpflash ext new ssd1306" -->
 ```text
 my-project/
-├── php-esp32.config.toml
+├── php-baremetal.config.toml
 ├── project-src/
 │   └── index.php
 └── firmware/exts/

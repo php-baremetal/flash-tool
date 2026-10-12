@@ -24,13 +24,13 @@ project board's family target — an S3 image with a P4 plugged in, say. The mes
 ```text
 board mismatch: this project targets "esp32-s3-eth" (esp32s3), but the connected chip is
 ESP32-P4 (esp32p4).
-  Fix [board].target in php-esp32.config.toml, plug in the right board, or re-run with --force.
+  Fix [board].target in php-baremetal.config.toml, plug in the right board, or re-run with --force.
 ```
 <!-- @endcode-block -->
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `flash` aborts with `board mismatch` before writing | The connected chip's target is not the target of the project board's family | Plug in the right board; or correct `[board].target` in `php-esp32.config.toml` and rebuild; or, if you know what you are doing, re-run `phpflash flash --force`. |
+| `flash` aborts with `board mismatch` before writing | The connected chip's target is not the target of the project board's family | Plug in the right board; or correct `[board].target` in `php-baremetal.config.toml` and rebuild; or, if you know what you are doing, re-run `phpflash flash --force`. |
 
 <!-- @callout variant="info" title="The check is deliberately lenient" -->
 The check only aborts on a *confirmed* mismatch. If the board's family target cannot be resolved, or
@@ -81,7 +81,7 @@ flag, config, env (`PHP_ESP32_DIR`, `IDF_PATH`) and default. A missing install f
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `no php-esp32.config.toml in this directory (run \`phpflash init\` first)` | The command ran outside a project directory | `cd` into the project, or scaffold one with `phpflash init`. |
+| `no php-baremetal.config.toml in this directory (run \`phpflash init\` first)` | The command ran outside a project directory | `cd` into the project, or scaffold one with `phpflash init`. |
 | `php-esp32 not found at <path> (run \`phpflash system-setup\`)` | The firmware repo is not installed where phpflash looked | Run `phpflash system-setup`; or point at an existing checkout with `--php-esp32-path` / `[php-esp32] path` / `PHP_ESP32_DIR`. |
 | The build fails invoking `idf.py` (export.sh not found, toolchain missing) | ESP-IDF is not installed, or `--idf-path` / `IDF_PATH` points at the wrong place | Run `phpflash system-setup` (installs ESP-IDF and runs its `install.sh`); or set the correct `--idf-path`. |
 | `xtensa-esp32s3-elf-gcc ... is not a full path and was not found in the PATH` (or the RISC-V equivalent) | The toolchain for the board's architecture was never installed — an ESP-IDF `install.sh` run that omitted this target (the ESP32-S3 is Xtensa, the ESP32-P4 is RISC-V; they are different toolchains) | Install it: `~/esp/esp-idf/install.sh esp32s3` (or `esp32p4`), then `phpflash build --clean`. `phpflash system-setup` now installs both (`esp32s3,esp32p4`), so setups done through it are covered. |

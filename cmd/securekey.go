@@ -94,7 +94,7 @@ func newSecureKeyCmd() *cobra.Command {
 // dir holds exactly one *.pem it is used as-is; otherwise the board's MAC is read to pick/generate
 // <MAC>.pem. Generating writes the key (mode 600) and a deploys/.gitignore.
 func resolveSecureBootKey(cfg *config.Config, projectDir, idfPath string) (string, error) {
-	dir := cfg.SecureBootKeysDir
+	dir := cfg.Esp32.SecureBootKeysDir
 	if dir == "" {
 		dir = "deploys"
 	}
@@ -110,7 +110,7 @@ func resolveSecureBootKey(cfg *config.Config, projectDir, idfPath string) (strin
 		key = pems[0] // one provisioned board for this project -- no need to touch the hardware
 	default:
 		// 0 keys (first build) or several (pick by the connected board): read the MAC.
-		port := cfg.Board.Port
+		port := cfg.Esp32.Port
 		if port == "" {
 			if ports := platform.ListPorts(); len(ports) > 0 {
 				port = ports[0]

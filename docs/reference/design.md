@@ -108,7 +108,7 @@ Beyond the base flags, the project's config adds more as needed:
 | Flag | When it is passed |
 |---|---|
 | `-DPHP_EMBED_SRC=<project-src>` | An `embedded` project — php-esp32 packs the source into a read-only image. |
-| `-DPHP_NET_DNS=<servers>` | A networked project sets static DNS (`[network] dns`). |
+| `-DPHP_NET_DNS=<servers>` | A networked project sets static DNS (`[esp32.network] dns`). |
 | `-DPHP_TLS_CAFILE=<path>` | A full-openssl `tls` project — the CA bundle location. |
 | `-DPHP_OPENSSL_CONF=<path>` | A full-openssl project with a custom `openssl.cnf` path. |
 
@@ -137,7 +137,7 @@ existing projects.
    features; the built-in radio (WiFi/BT) is derived from the features. The target is normalized to
    what a family declares (the package suffix esptool prints, like `(QFN56)`, is dropped).
 3. **Boards.** Map the chip's target to a family and list its boards, each annotated with the network
-   and microSD it declares, plus a ready-to-paste `[board] target` snippet; an unmatched target is
+   and microSD it declares, plus a ready-to-paste `[esp32] target` snippet; an unmatched target is
    reported as an unsupported board.
 <!-- @endsteps -->
 
@@ -177,7 +177,7 @@ board or network:
 
 | Package | What its tests cover |
 |---|---|
-| **config** | Round-trips the config (including `[extensions.<name>]` tables, string settings and `[network]`) and checks the flag, config, env, default precedence. |
+| **config** | Round-trips the config (including `[extensions.<name>]` tables, string settings and `[esp32.network]`) and checks the flag, config, env, default precedence. |
 | **manifest** | Parses php-esp32's descriptors and resolves a project's effective set into the `-D<flag>` list, rejecting unmet requirements; exposes each board's peripherals and its family target. |
 | **build** | Checks the exact `idf.py` argument list, that fetches run first, the embed, DNS and TLS argument derivation, the storage-partition erase, and the CA-bundle provisioning; the progress renderer is checked on synthetic ninja output. |
 | **discover** | Parses esptool output and the discovery-firmware report, derives the chip target (dropping the package suffix) and built-in radio, and matches a chip to a family. |

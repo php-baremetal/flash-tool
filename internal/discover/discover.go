@@ -217,13 +217,16 @@ func ParseDiscoverFW(raw string) DiscoverFW {
 // BOARD -- reusing that board's board.c, so the probe uses its real GPIO wiring -- and flashes it,
 // streaming idf.py's output to out. The build tree lives in a per-board temp dir, so the install
 // stays clean and each board's build caches.
-func BuildFlashDiscoverFW(idfPath, phpDir, boardKey, port string, out io.Writer) error {
+// dargs are the resolved -D flags for this candidate (as the main build passes: -DBOARD=<chip/mode>,
+// -DPHP_PRESET_SDKCONFIG, -DPHP_NETWORK, pins, ...), built into buildDir. env are extra process
+// environment entries ("KEY=VAL") the discover-fw CMake reads in the early requirement-expansion
+// phase (PHP_ESP32_NETWORK, so board.cmake pulls the matching net REQUIRES).
+func BuildFlashDiscoverFW(idfPath, phpDir, buildDir string, dargs, env []string, port string, out io.Writer) error {
 	proj := filepath.Join(phpDir, "tools", "discover-fw")
 	if _, err := os.Stat(filepath.Join(proj, "CMakeLists.txt")); err != nil {
 		return fmt.Errorf("discovery firmware not found at %s (php-esp32 too old?)", proj)
 	}
-	buildDir := filepath.Join(os.TempDir(), "phpflash-discoverfw-"+boardKey)
-	idfArgs := []string{"-C", proj, "-B", buildDir, "-DBOARD=" + boardKey}
+	idfArgs := append([]string{"-C", proj, "-B", buildDir}, dargs...)
 	if port != "" {
 		idfArgs = append(idfArgs, "-p", port)
 	}
@@ -235,6 +238,7 @@ func BuildFlashDiscoverFW(idfPath, phpDir, boardKey, port string, out io.Writer)
 	script := ". " + shquote(filepath.Join(idfPath, "export.sh")) +
 		" >/dev/null 2>&1 && idf.py " + strings.Join(quoted, " ")
 	c := exec.Command("bash", "-c", script)
+	c.Env = append(os.Environ(), env...)
 	c.Stdout, c.Stderr = out, out
 	return c.Run()
 }

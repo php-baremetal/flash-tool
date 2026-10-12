@@ -31,7 +31,7 @@ The bundle only exists for projects that build a working TLS client — the full
 `tls` setting. That combination is what makes `https://` and `tls://` work from PHP on the device;
 without it there is no bundle and nothing to update.
 
-<!-- @code-block language="toml" label="php-esp32.config.toml — a project with a TLS client" -->
+<!-- @code-block language="toml" label="php-baremetal.config.toml — a project with a TLS client" -->
 ```toml
 [extensions.openssl]
 enabled = true
@@ -86,7 +86,7 @@ updated roots.
 `update-certs` reads the project config in the current directory and refuses in three cases, each with
 a clear message rather than a silent no-op:
 
-- **No project here.** No `php-esp32.config.toml` in the current directory — run it from your project
+- **No project here.** No `php-baremetal.config.toml` in the current directory — run it from your project
   directory (or `phpflash init` first).
 - **No TLS client.** The project does not build the TLS client (`[extensions.openssl]` `full` + `tls`),
   so there are no certificates to update.

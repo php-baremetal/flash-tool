@@ -74,7 +74,7 @@ aborts:
 <!-- @code-block language="text" label="terminal — a confirmed mismatch aborts" -->
 ```
 board mismatch: this project targets "esp32s3" (esp32-s3-eth), but the connected chip is ESP32-P4 (esp32p4).
-  Fix [board].target in php-esp32.config.toml, plug in the right board, or re-run with --force.
+  Fix [board].target in php-baremetal.config.toml, plug in the right board, or re-run with --force.
 ```
 <!-- @endcode-block -->
 

@@ -12,7 +12,7 @@ next: { label: 'phpflash flash', href: './flash.md' }
 # `phpflash build`
 
 `build` compiles the firmware for the project in the current directory. It reads
-`php-esp32.config.toml`, works out which extensions to compile and which fetch scripts they need,
+`php-baremetal.config.toml`, works out which extensions to compile and which fetch scripts they need,
 resolves the toolchain and PHP version, and drives ESP-IDF into an isolated build tree under the
 project's own `build/`. On success the flashable images sit in `build/`, ready for
 [`phpflash flash`](./flash.md).
@@ -26,7 +26,7 @@ phpflash build
 ## What it does
 
 <!-- @steps -->
-- **Load the config.** Reads `php-esp32.config.toml` (overlaying `php-esp32.config.local.toml` if
+- **Load the config.** Reads `php-baremetal.config.toml` (overlaying `php-baremetal.config.local.toml` if
   present). Errors out with a pointer to `phpflash init` when there is no config here.
 - **Resolve toolchain and version.** Finds ESP-IDF and php-esp32 by the usual precedence
   (flag → config → env → default). The PHP language version is the project's `[php] version` if it
@@ -74,7 +74,7 @@ reconfigures from scratch. A build failure also prints this hint.
 <!-- @code-block language="text" label="tree — build output" -->
 ```text
 my-project/
-├── php-esp32.config.toml
+├── php-baremetal.config.toml
 ├── project-src/
 └── build/
     ├── compiled/               the full ESP-IDF build tree
@@ -113,7 +113,7 @@ A `microsd` project ships its source on the FAT32 card, so nothing is baked in. 
 An `embedded` project bakes `project-src/` into a read-only image in flash. `build` adds
 `-DPHP_EMBED_SRC=<absolute project-src>` (the path is made absolute because ESP-IDF runs from its own
 build tree). microSD support is compiled in only if the project opts into a writable card with
-`[storage] microsd = true`; otherwise `-DPHP_STORAGE_MICROSD=OFF` and the SD drivers are dropped.
+`[esp32.storage] microsd = true`; otherwise `-DPHP_STORAGE_MICROSD=OFF` and the SD drivers are dropped.
 `[storage] reserve_kb` pads the flash `storage` partition on top of the source.
 
 <!-- @endtab -->
@@ -123,7 +123,7 @@ build tree). microSD support is compiled in only if the project opts into a writ
 `-DPHP_ENTRY` (for a framework's nested front controller), a `web-server` project's `[web-server] init`
 becomes `-DPHP_WEB_INIT`, a `firmware/exts/` directory with a custom extension becomes
 `-DPHP_PROJECT_EXTS_DIR`, a project `.env` is baked in, a full-openssl TLS project ships the host's CA
-bundle, and `[network] dns` / `[board] cpu_freq_mhz` / `[store] size_kb` each get their own define.
+bundle, and `[esp32.network] dns` / `[esp32] cpu_freq_mhz` / `[store] size_kb` each get their own define.
 
 ## Flags
 
@@ -143,7 +143,7 @@ php-esp32 location, overriding config, environment and default (flag → `[php-e
 ## Guardrails
 
 <!-- @callout variant="warning" title="Errors that stop the build early" -->
-`build` refuses before touching ESP-IDF when the setup is wrong: no `php-esp32.config.toml` in the
+`build` refuses before touching ESP-IDF when the setup is wrong: no `php-baremetal.config.toml` in the
 directory (run `phpflash init` first), php-esp32 not found at the resolved path (run
 `phpflash system-setup`), or a `[php] version` that is not installed — the last names the versions that
 are. Progress is shown as phases with a bar; if the ESP-IDF build itself fails, the full ESP-IDF output

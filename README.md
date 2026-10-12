@@ -45,7 +45,7 @@ in phpflash with no change here. Two chip families are supported today (ESP32-P4
   host-CA provisioning (`update-certs`).
 - **Per-project, from the config.** Pin the PHP version, scaffold a custom C extension (`ext new`),
   bake a `.env` into the firmware as `$_ENV` / `getenv()`, and size a reboot-persistent key-value
-  store -- each set in `php-esp32.config.toml`, no firmware fork.
+  store -- each set in `php-baremetal.config.toml`, no firmware fork.
 
 ## Requirements
 
@@ -136,7 +136,7 @@ Radio:    WiFi, Bluetooth (built into the chip)
 Supported boards for esp32s3 (family "ESP32-S3"):
   - esp32-s3-eth    ESP32-S3-ETH     network: ethernet  microSD: yes (-DBOARD=esp32-s3-eth)
 
-To target one from a project, set in php-esp32.config.toml:
+To target one from a project, set in php-baremetal.config.toml:
   [board]
   target = "esp32-s3-eth"
 ```
@@ -178,16 +178,16 @@ brings the link up.
 
 ## Configuration
 
-`init` writes `php-esp32.config.toml`; the other commands read it. A short one looks like this:
+`init` writes `php-baremetal.config.toml`; the other commands read it. A short one looks like this:
 
 ```toml
 name         = "my-project"
-storage_type = "microsd"      # microsd | embedded
 type         = "init-loop"    # init-loop | web-server | event-driven
 
-[board]
+[esp32]
 target = "esp32-p4-pico"      # its family decides the ESP-IDF target
 port   = ""                   # empty = autodetect at flash time
+storage_type = "microsd"      # microsd | embedded
 
 [extensions.mbstring]
 enabled = true
@@ -203,14 +203,14 @@ Beyond these, a project can bake a `.env` into the firmware (read as `$_ENV` / `
 reboot-persistent key-value store with `[store] size_kb`, and ship custom C extensions in
 `firmware/exts/` (see `ext new`). Every key, table and extension setting, with its type and default,
 is documented in [docs/configuration/config-file.md](docs/configuration/config-file.md). A sibling
-`php-esp32.config.local.toml`, if present, is overlaid on top for machine-specific tweaks (a serial
+`php-baremetal.config.local.toml`, if present, is overlaid on top for machine-specific tweaks (a serial
 port, a toolchain path) and is git-ignored.
 
 ## Documentation
 
 The docs are organised as a small set of pages under [docs/](docs/index.md):
 
-- [Configuration file](docs/configuration/config-file.md): every option in `php-esp32.config.toml`.
+- [Configuration file](docs/configuration/config-file.md): every option in `php-baremetal.config.toml`.
 - [Command reference](docs/commands/init.md): one page per command, every flag.
 - [Design](docs/reference/design.md): how phpflash is built and how it reads php-esp32.
 - Getting started, recipes and troubleshooting: see the [documentation index](docs/index.md).

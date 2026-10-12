@@ -1,23 +1,11 @@
 name = "{{ .Name }}"
-storage_type = "{{ .StorageType }}"   # where the PHP source lives
 type = "{{ .Type }}"                  # execution model
 
-[board]
-target = "{{ .Board.Target }}"
-port   = "{{ .Board.Port }}"          # empty = autodetect at flash time
-
-[esp-idf]
-path    = "{{ .EspIdf.Path }}"
-version = "{{ .EspIdf.Version }}"
-
-[php-esp32]
-path    = "{{ .PhpEsp32.Path }}"
-version = "{{ .PhpEsp32.Version }}"
-{{ if eq .StorageType "embedded" }}
-[storage]
-microsd = {{ .Storage.Microsd }}   # embedded: also mount a microSD for writable data (off = no SD support compiled)
-reserve_kb = {{ .Storage.ReserveKB }}   # extra KB in the flash `storage` partition on top of the source (0 = just fit it)
-{{ end }}{{ range $key, $ext := .Extensions }}
+[php]
+src     = "{{ .Php.Src }}"      # PHP source folder (copied to the microSD / embedded)
+entry   = "{{ .Php.Entry }}"    # entry file within src
+version = "{{ .Php.Version }}"   # PHP version to build (e.g. "8.5.9"); empty = the repo default
+{{ range $key, $ext := .Extensions }}
 [extensions.{{ $key }}]
 enabled = {{ $ext.Enabled }}
 {{- range $sk, $sv := $ext.Settings }}
@@ -27,11 +15,24 @@ enabled = {{ $ext.Enabled }}
 {{ $sk }} = "{{ $sv }}"
 {{- end }}
 {{ end }}
-[php]
-src     = "{{ .Php.Src }}"      # PHP source folder (copied to the microSD / embedded)
-entry   = "{{ .Php.Entry }}"    # entry file within src
-version = "{{ .Php.Version }}"   # PHP version to build (e.g. "8.5.9"); empty = the repo default
+# --- ESP32 backend: board, toolchain and build-time hardware ---
+[esp32]
+preset       = "{{ .Esp32.Preset }}"        # vendor-model board preset (phpflash discover lists them)
+port         = "{{ .Esp32.Port }}"          # empty = autodetect at flash time
+storage_type = "{{ .Esp32.StorageType }}"   # where the PHP source lives: "microsd" | "embedded"
 
+[esp32.idf]
+path    = "{{ .Esp32.Idf.Path }}"
+version = "{{ .Esp32.Idf.Version }}"
+
+[esp32.sdk]
+path    = "{{ .Esp32.Sdk.Path }}"
+version = "{{ .Esp32.Sdk.Version }}"
+{{ if eq .Esp32.StorageType "embedded" }}
+[esp32.storage]
+microsd = {{ .Esp32.Storage.Microsd }}   # embedded: also mount a microSD for writable data (off = no SD support compiled)
+reserve_kb = {{ .Esp32.Storage.ReserveKB }}   # extra KB in the flash `storage` partition on top of the source (0 = just fit it)
+{{ end }}
 # A ./.env next to this file is baked into the firmware and exposed to PHP as $_ENV / getenv().
 # On by default when the file exists (see docs/environment.md). Uncomment to configure:
 # [env]

@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -15,15 +17,11 @@ import (
 	"phpflash/internal/platform"
 )
 
-// hasNet reports whether a board declares a network interface (used to order/interpret probes).
-func hasNet(b manifest.BoardInfo) bool { return b.Network != "" && b.Network != "none" }
-
-// printProbe renders one candidate board's discovery-firmware result.
+// printProbe renders one candidate preset's discovery-firmware result.
 func printProbe(out io.Writer, df discover.DiscoverFW) {
-	fmt.Fprintf(out, "  board wiring: %s\n", df.Board)
 	switch {
 	case df.EthernetNA:
-		fmt.Fprintln(out, "  Ethernet:     n/a (this board has no network hardware)")
+		fmt.Fprintln(out, "  Ethernet:     n/a (this preset wires no Ethernet)")
 	case df.Ethernet:
 		fmt.Fprintf(out, "  Ethernet:     up (%s)\n", df.IP)
 	default:
@@ -31,7 +29,7 @@ func printProbe(out io.Writer, df discover.DiscoverFW) {
 	}
 	switch {
 	case df.MicroSDNA:
-		fmt.Fprintln(out, "  microSD:      n/a (this board has no card slot)")
+		fmt.Fprintln(out, "  microSD:      n/a (this preset wires no card slot)")
 	case df.MicroSD:
 		fmt.Fprintf(out, "  microSD:      card present (%s)\n", df.CardSize)
 	default:
@@ -40,6 +38,26 @@ func printProbe(out io.Writer, df discover.DiscoverFW) {
 	if df.PSRAM != "" {
 		fmt.Fprintf(out, "  PSRAM:        %s\n", df.PSRAM)
 	}
+}
+
+// discoverFWInputs resolves a preset into the inputs the discovery firmware build needs: its own temp
+// build dir (where resolveBoard writes the preset sdkconfig fragment), the -D flags the main build
+// would pass, the process env board.cmake reads in the early phase, and the wired network type ("" if
+// none, i.e. wifi/none -- those have no link to probe).
+func discoverFWInputs(phpDir, presetKey string) (buildDir string, dargs, env []string, netType string, err error) {
+	cfg := &config.Config{}
+	cfg.Esp32.Preset = presetKey
+	buildDir = filepath.Join(os.TempDir(), "phpflash-discoverfw-"+strings.ReplaceAll(presetKey, "/", "_"))
+	res, err := resolveBoard(cfg, phpDir, buildDir)
+	if err != nil {
+		return "", nil, nil, "", err
+	}
+	dargs = append([]string{"-DBOARD=" + res.BoardKey}, res.DArgs...)
+	if res.IDFTarget != "" {
+		dargs = append(dargs, "-DIDF_TARGET="+res.IDFTarget)
+	}
+	env = []string{"PHP_ESP32_MICROSD=ON", "PHP_ESP32_NETWORK=" + res.Network, "PHP_ESP32_BOARD=" + res.BoardKey}
+	return buildDir, dargs, env, res.Network, nil
 }
 
 // newDiscoverCmd inspects the board that's plugged in -- from the board outwards, no project or
@@ -85,7 +103,7 @@ func newDiscoverCmd() *cobra.Command {
 
 			if noProbe {
 				fmt.Fprintln(out, "\n(--no-probe: skipping the chip probe)")
-				printFamilies(out, phpDir)
+				printChips(out, phpDir)
 				return nil
 			}
 
@@ -126,34 +144,34 @@ func newDiscoverCmd() *cobra.Command {
 				}
 			}
 
-			// Board-first mapping: which supported boards fit this chip?
-			families, _ := manifest.Families(phpDir)
-			fam := discover.FamilyForTarget(families, info.Target)
-			if fam == nil {
-				fmt.Fprintf(out, "\nNo board here supports %q yet -- this looks like an unsupported board.\n", info.Target)
+			// Board-first mapping: which chip supports this target, and its presets.
+			chips, _ := manifest.Families(phpDir)
+			chip := discover.FamilyForTarget(chips, info.Target)
+			if chip == nil {
+				fmt.Fprintf(out, "\nNo chip here supports %q yet -- this looks like an unsupported board.\n", info.Target)
 				fmt.Fprintln(out, "The chip is fine; this php-esp32 just has no board definition for it.")
-				printFamilies(out, phpDir)
-				fmt.Fprintf(out, "To add it, create boards/<family>/%s/ (family.toml with target = %q, plus board.toml).\n", info.Target, info.Target)
+				printChips(out, phpDir)
+				fmt.Fprintf(out, "To add it, create boards/<chip>/chip.toml with target = %q (plus board.c and presets/).\n", info.Target)
 				return nil
 			}
 
-			boards, _ := manifest.BoardsIn(phpDir, fam.Key)
-			fmt.Fprintf(out, "\nSupported boards for %s (family %q):\n", info.Target, fam.Name)
+			boards, _ := manifest.BoardsIn(phpDir, chip.Key)
+			fmt.Fprintf(out, "\nBoard presets for %s (chip %q):\n", info.Target, chip.Name)
 			for _, b := range boards {
-				fmt.Fprintf(out, "  - %-15s %-16s network: %-9s microSD: %-3s (-DBOARD=%s)\n",
-					b.Key, b.Name, b.Network, yesno(b.MicroSD), b.Key)
+				fmt.Fprintf(out, "  - %-32s %-24s network: %-13s microSD: %s\n",
+					b.Key, b.Name, b.Network, yesno(b.MicroSD))
 			}
-			fmt.Fprintln(out, "Note: `network`/`microSD` above are what each board *model* carries (from its")
-			fmt.Fprintln(out, "board.toml) -- the chip alone can't tell the models apart (same silicon).")
+			fmt.Fprintln(out, "Note: `network`/`microSD` are what each preset wires -- the chip alone")
+			fmt.Fprintln(out, "can't tell the models apart (same silicon).")
 
 			// A ready-to-paste snippet so wiring a project to this board is copyable, not retyped.
 			if len(boards) > 0 {
 				fmt.Fprintf(out, "\nTo target one from a project, set in %s:\n", config.FileName)
-				fmt.Fprintln(out, "  [board]")
+				fmt.Fprintln(out, "  [esp32]")
 				if len(boards) == 1 {
-					fmt.Fprintf(out, "  target = %q\n", boards[0].Key)
+					fmt.Fprintf(out, "  preset = %q\n", boards[0].Key)
 				} else {
-					fmt.Fprintf(out, "  target = %q   # pick the model matching yours from the list above\n", boards[0].Key)
+					fmt.Fprintf(out, "  preset = %q   # pick the model matching yours from the list above\n", boards[0].Key)
 				}
 			}
 
@@ -165,9 +183,9 @@ func newDiscoverCmd() *cobra.Command {
 			}
 
 			// --all: actively probe the peripherals with a discovery firmware, built PER CANDIDATE
-			// BOARD (reusing its board.c) so the probe uses each board's real GPIO wiring, then match.
+			// PRESET (reusing the chip's board.c with that preset's wiring), then match.
 			fmt.Fprintln(out, "\nWARNING: --all flashes a small discovery firmware to actively probe this")
-			fmt.Fprintln(out, "board (Ethernet, microSD), building it once per candidate board. This ERASES")
+			fmt.Fprintln(out, "board (Ethernet, microSD), building it once per candidate preset. This ERASES")
 			fmt.Fprintln(out, "the app on the board; you'll need to re-flash your firmware afterwards")
 			fmt.Fprintln(out, "(phpflash flash).")
 			if !assumeYes && !confirm(cmd, "Continue?") {
@@ -175,62 +193,70 @@ func newDiscoverCmd() *cobra.Command {
 				return nil
 			}
 
-			// Network-capable boards first: their link coming up is the clearest discriminator and
-			// lets us stop early.
-			ordered := append([]manifest.BoardInfo{}, boards...)
-			sort.SliceStable(ordered, func(i, j int) bool { return hasNet(ordered[i]) && !hasNet(ordered[j]) })
+			// Resolve each preset into its discovery-firmware build inputs. `wired` presets (EMAC/W5500)
+			// have a link to detect, which is the clearest discriminator, so probe them first.
+			type cand struct {
+				info     manifest.BoardInfo
+				buildDir string
+				dargs    []string
+				env      []string
+				wired    bool
+			}
+			var cands []cand
+			for _, b := range boards {
+				bd, dargs, env, net, err := discoverFWInputs(phpDir, b.Key)
+				if err != nil {
+					return fmt.Errorf("resolve preset %q: %w", b.Key, err)
+				}
+				cands = append(cands, cand{b, bd, dargs, env, net == "emac" || net == "w5500"})
+			}
+			sort.SliceStable(cands, func(i, j int) bool { return cands[i].wired && !cands[j].wired })
 
 			var matched *manifest.BoardInfo
-			hadNetCandidate := false
-			cardSeen := false // any probe mounted a card -> the board physically has an SD slot
-			for i := range ordered {
-				b := ordered[i]
-				if hasNet(b) {
-					hadNetCandidate = true
+			hadWired, cardSeen := false, false
+			for i := range cands {
+				c := cands[i]
+				if c.wired {
+					hadWired = true
 				}
-				fmt.Fprintf(out, "\n== Probing with the %s wiring ==\n", b.Key)
-				if err := discover.BuildFlashDiscoverFW(idf, phpDir, b.Key, target, out); err != nil {
-					return fmt.Errorf("discovery firmware (%s): %w", b.Key, err)
+				fmt.Fprintf(out, "\n== Probing with the %s wiring ==\n", c.info.Key)
+				if err := discover.BuildFlashDiscoverFW(idf, phpDir, c.buildDir, c.dargs, c.env, target, out); err != nil {
+					return fmt.Errorf("discovery firmware (%s): %w", c.info.Key, err)
 				}
 				df := discover.ParseDiscoverFW(discover.ReadSerialUntil(idf, target, "DISCOVER-FW-END", 30))
 				if !df.Seen {
-					return fmt.Errorf("no output from the discovery firmware (%s)", b.Key)
+					return fmt.Errorf("no output from the discovery firmware (%s)", c.info.Key)
 				}
 				printProbe(out, df)
 				if df.MicroSD {
 					cardSeen = true
 				}
-				if hasNet(b) && df.Ethernet { // this board's network came up -> it's this board
-					matched = &ordered[i]
+				if c.wired && df.Ethernet { // this preset's link came up -> it's this board
+					matched = &cands[i].info
 					break
 				}
 			}
-			// Split the non-network candidates by whether they carry a microSD slot.
-			var nonNetWithSD, nonNetNoSD []manifest.BoardInfo
-			for i := range boards {
-				if hasNet(boards[i]) {
+			// Split the non-wired candidates by whether they carry a microSD slot.
+			var nonWiredWithSD, nonWiredNoSD []manifest.BoardInfo
+			for i := range cands {
+				if cands[i].wired {
 					continue
 				}
-				if boards[i].MicroSD {
-					nonNetWithSD = append(nonNetWithSD, boards[i])
+				if cands[i].info.MicroSD {
+					nonWiredWithSD = append(nonWiredWithSD, cands[i].info)
 				} else {
-					nonNetNoSD = append(nonNetNoSD, boards[i])
+					nonWiredNoSD = append(nonWiredNoSD, cands[i].info)
 				}
 			}
 			if matched == nil {
 				if cardSeen {
-					// A card mounted -> the board HAS a slot, which rules out the slotless -zero
-					// variant. Pick the single non-network board that has a slot.
-					if len(nonNetWithSD) == 1 {
-						matched = &nonNetWithSD[0]
+					if len(nonWiredWithSD) == 1 {
+						matched = &nonWiredWithSD[0]
 					}
 				} else {
-					// Nothing detected (no link, no card). This can't distinguish a slotless -zero
-					// board from a board with an empty slot, so only decide if there is a single
-					// non-network candidate overall.
-					allNonNet := append(append([]manifest.BoardInfo{}, nonNetWithSD...), nonNetNoSD...)
-					if len(allNonNet) == 1 {
-						matched = &allNonNet[0]
+					allNonWired := append(append([]manifest.BoardInfo{}, nonWiredWithSD...), nonWiredNoSD...)
+					if len(allNonWired) == 1 {
+						matched = &allNonWired[0]
 					}
 				}
 			}
@@ -240,18 +266,17 @@ func newDiscoverCmd() *cobra.Command {
 				rule := strings.Repeat("=", 52)
 				fmt.Fprintln(out, rule)
 				fmt.Fprintf(out, "  THIS BOARD IS:  %s\n", matched.Name)
-				fmt.Fprintf(out, "  build with:     -DBOARD=%s\n", matched.Key)
+				fmt.Fprintf(out, "  set in %s:\n", config.FileName)
+				fmt.Fprintf(out, "    [esp32]\n    preset = %q\n", matched.Key)
 				fmt.Fprintln(out, rule)
 			} else {
 				fmt.Fprintln(out, "Couldn't uniquely identify the board -- the probe results are above.")
-				if hadNetCandidate {
+				if hadWired {
 					fmt.Fprintln(out, "If it has Ethernet, connect the cable (the probe needs the link up) and retry.")
 				}
-				// Ambiguous between a slotless -zero board and an SD board with an empty slot:
-				// inserting a card settles it (a mounted card rules out -zero).
-				if !cardSeen && len(nonNetWithSD) > 0 && len(nonNetNoSD) > 0 {
+				if !cardSeen && len(nonWiredWithSD) > 0 && len(nonWiredNoSD) > 0 {
 					fmt.Fprintln(out, "If it has a microSD slot, insert a card and retry; if it has neither")
-					fmt.Fprintln(out, "network nor a card slot, it's the slotless variant (e.g. -zero).")
+					fmt.Fprintln(out, "network nor a card slot, it's the slotless variant.")
 				}
 			}
 
@@ -277,17 +302,17 @@ func confirm(cmd *cobra.Command, q string) bool {
 	return line == "y" || line == "yes"
 }
 
-// printFamilies lists the chip families this install knows about, for when the chip is unsupported
-// or the probe was skipped.
-func printFamilies(out io.Writer, phpDir string) {
-	families, _ := manifest.Families(phpDir)
-	if len(families) == 0 {
-		fmt.Fprintln(out, "No board families found (is php-esp32 installed? try --php-esp32-path).")
+// printChips lists the chips this install knows about, for when the chip is unsupported or the probe
+// was skipped.
+func printChips(out io.Writer, phpDir string) {
+	chips, _ := manifest.Families(phpDir)
+	if len(chips) == 0 {
+		fmt.Fprintln(out, "No chips found (is php-esp32 installed? try --php-esp32-path).")
 		return
 	}
-	fmt.Fprintln(out, "Chip families this php-esp32 supports:")
-	for _, f := range families {
-		fmt.Fprintf(out, "  - %-10s %s (target %s)\n", f.Key, f.Name, f.Target)
+	fmt.Fprintln(out, "Chips this php-esp32 supports:")
+	for _, c := range chips {
+		fmt.Fprintf(out, "  - %-10s %s (target %s)\n", c.Key, c.Name, c.Target)
 	}
 }
 

@@ -8,12 +8,15 @@ import (
 
 func TestSaveLoadRoundTrip(t *testing.T) {
 	c := &Config{
-		Name:        "demo",
-		StorageType: "microsd",
-		Type:        "init-loop",
-		Board:       BoardConfig{Target: "esp32-p4-pico", Port: ""},
-		EspIdf:      SourceConfig{Version: "v5.5.5"},
-		PhpEsp32:    SourceConfig{},
+		Name: "demo",
+		Type: "init-loop",
+		Esp32: Esp32Config{
+			StorageType: "microsd",
+			Preset:      "waveshare-esp32-p4-pico",
+			Port:        "",
+			Idf:         SourceConfig{Version: "v5.5.5"},
+			Sdk:         SourceConfig{},
+		},
 		Extensions: map[string]Extension{
 			"date":   {Enabled: true, Settings: map[string]bool{"minimal_tz": true}},
 			"sqlite": {Enabled: false},
@@ -29,11 +32,11 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Name != "demo" || got.StorageType != "microsd" || got.Type != "init-loop" {
+	if got.Name != "demo" || got.Esp32.StorageType != "microsd" || got.Type != "init-loop" {
 		t.Errorf("scalar fields wrong: %+v", got)
 	}
-	if got.Board.Target != "esp32-p4-pico" {
-		t.Errorf("board target = %q", got.Board.Target)
+	if got.Esp32.Preset != "waveshare-esp32-p4-pico" {
+		t.Errorf("board preset = %q", got.Esp32.Preset)
 	}
 	if !got.Extensions["date"].Enabled || !got.Extensions["date"].Settings["minimal_tz"] {
 		t.Errorf("date extension/settings lost: %+v", got.Extensions["date"])
@@ -49,7 +52,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 func TestLoadNoLocalFile(t *testing.T) {
 	// With no *.local.toml present, Load returns just the base config.
 	dir := t.TempDir()
-	base := "name = \"x\"\nstorage_type = \"microsd\"\ntype = \"init-loop\"\n[board]\ntarget = \"esp32-p4-pico\"\nport = \"/dev/ttyACM0\"\n"
+	base := "name = \"x\"\ntype = \"init-loop\"\n[esp32]\npreset = \"waveshare-esp32-p4-pico\"\nport = \"/dev/ttyACM0\"\nstorage_type = \"microsd\"\n"
 	path := filepath.Join(dir, FileName)
 	if err := os.WriteFile(path, []byte(base), 0o644); err != nil {
 		t.Fatal(err)
@@ -58,21 +61,21 @@ func TestLoadNoLocalFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Board.Port != "/dev/ttyACM0" || c.Board.Target != "esp32-p4-pico" {
-		t.Errorf("base not loaded: %+v", c.Board)
+	if c.Esp32.Port != "/dev/ttyACM0" || c.Esp32.Preset != "waveshare-esp32-p4-pico" {
+		t.Errorf("base not loaded: %+v", c.Esp32)
 	}
 }
 
 func TestLoadNetworkAndTLSOptions(t *testing.T) {
-	// The [network] dns array and the openssl string options (config_path/certs_path/certs_source)
-	// plus the bool settings must all parse from real TOML.
+	// The [esp32.network] dns array and the openssl string options (config_path/certs_path/
+	// certs_source) plus the bool settings must all parse from real TOML.
 	dir := t.TempDir()
 	base := `name = "x"
-storage_type = "embedded"
 type = "init-loop"
-[board]
-target = "esp32-p4-eth"
-[network]
+[esp32]
+preset = "waveshare-esp32-p4-eth"
+storage_type = "embedded"
+[esp32.network]
 dns = ["1.1.1.1", "8.8.8.8"]
 [extensions.openssl]
 enabled = true
@@ -89,8 +92,8 @@ certs_source = "/etc/ssl/certs/ca-certificates.crt"
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Network.Dns) != 2 || c.Network.Dns[0] != "1.1.1.1" || c.Network.Dns[1] != "8.8.8.8" {
-		t.Errorf("dns = %v", c.Network.Dns)
+	if len(c.Esp32.Network.Dns) != 2 || c.Esp32.Network.Dns[0] != "1.1.1.1" || c.Esp32.Network.Dns[1] != "8.8.8.8" {
+		t.Errorf("dns = %v", c.Esp32.Network.Dns)
 	}
 	ext := c.Extensions["openssl"]
 	if !ext.Enabled || !ext.Settings["full"] || !ext.Settings["tls"] {
@@ -103,14 +106,14 @@ certs_source = "/etc/ssl/certs/ca-certificates.crt"
 
 func TestLoadLocalOverride(t *testing.T) {
 	dir := t.TempDir()
-	base := "name = \"x\"\nstorage_type = \"microsd\"\ntype = \"init-loop\"\n" +
-		"[board]\ntarget = \"esp32-p4-pico\"\nport = \"\"\n" +
-		"[esp-idf]\npath = \"/base/idf\"\n"
+	base := "name = \"x\"\ntype = \"init-loop\"\n" +
+		"[esp32]\npreset = \"waveshare-esp32-p4-pico\"\nport = \"\"\nstorage_type = \"microsd\"\n" +
+		"[esp32.idf]\npath = \"/base/idf\"\n"
 	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(base), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// Local overrides only the serial port; everything else must stay from the base.
-	local := "[board]\nport = \"/dev/ttyACM1\"\n"
+	local := "[esp32]\nport = \"/dev/ttyACM1\"\n"
 	if err := os.WriteFile(filepath.Join(dir, LocalFileName), []byte(local), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -118,16 +121,16 @@ func TestLoadLocalOverride(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Board.Port != "/dev/ttyACM1" {
-		t.Errorf("local override not applied: port = %q", c.Board.Port)
+	if c.Esp32.Port != "/dev/ttyACM1" {
+		t.Errorf("local override not applied: port = %q", c.Esp32.Port)
 	}
-	if c.Board.Target != "esp32-p4-pico" {
-		t.Errorf("base value clobbered: target = %q", c.Board.Target)
+	if c.Esp32.Preset != "waveshare-esp32-p4-pico" {
+		t.Errorf("base value clobbered: preset = %q", c.Esp32.Preset)
 	}
-	if c.EspIdf.Path != "/base/idf" {
-		t.Errorf("unrelated base value lost: esp-idf.path = %q", c.EspIdf.Path)
+	if c.Esp32.Idf.Path != "/base/idf" {
+		t.Errorf("unrelated base value lost: esp32.idf.path = %q", c.Esp32.Idf.Path)
 	}
-	if c.Name != "x" || c.StorageType != "microsd" {
+	if c.Name != "x" || c.Esp32.StorageType != "microsd" {
 		t.Errorf("base scalars lost: %+v", c)
 	}
 }

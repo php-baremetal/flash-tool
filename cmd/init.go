@@ -45,7 +45,7 @@ func newInitCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&o.Name, "name", "", "project name (default: directory name)")
-	cmd.Flags().StringVar(&o.Board, "board", "esp32-p4-pico", "board / target")
+	cmd.Flags().StringVar(&o.Board, "board", "waveshare-esp32-p4-pico", "board preset")
 	cmd.Flags().StringVar(&o.PhpEsp32Dir, "php-esp32-path", "", "path to the installed php-esp32")
 	cmd.Flags().BoolVar(&o.Yes, "yes", false, "accept all defaults, no prompts")
 	cmd.Flags().BoolVar(&o.Force, "force", false, "overwrite an existing config")
@@ -64,13 +64,13 @@ func runInit(out io.Writer, p prompt.Prompter, o initOpts) error {
 		name, _ = p.Input("Project name", defName)
 	}
 
-	boardKey := o.Board
+	presetKey := o.Board
 	storage, projType := "microsd", "init-loop"
 	phpVersion := "" // empty = follow the repo default; pinned only if the user picks a non-default one
 	exts := map[string]config.Extension{}
 
-	// Read the installed php-esp32: choose a board (family -> board), then the modes
-	// and extensions it offers. If it isn't installed, keep the flag/default board and
+	// Read the installed php-esp32: choose a board preset (chip -> preset), then the modes
+	// and extensions it offers. If it isn't installed, keep the flag/default preset and
 	// skip these steps (the commands stay independent).
 	var m *manifest.Manifest
 	defaultVersion := ""
@@ -81,14 +81,16 @@ func runInit(out io.Writer, p prompt.Prompter, o initOpts) error {
 	if m != nil {
 		if !o.Yes {
 			if fams, _ := manifest.Families(o.PhpEsp32Dir); len(fams) > 0 {
-				fam := pickFamily(p, fams)
-				if boards, _ := manifest.BoardsIn(o.PhpEsp32Dir, fam.Key); len(boards) > 0 {
-					boardKey = pickBoard(p, boards, o.Board)
+				chip := pickChip(p, fams)
+				if presets, _ := manifest.BoardsIn(o.PhpEsp32Dir, chip.Key); len(presets) > 0 {
+					presetKey = pickPreset(p, presets, o.Board).Key
 				}
 			}
 		}
-		if board, err := manifest.LoadBoard(o.PhpEsp32Dir, fullBoard(boardKey, o.PhpEsp32Dir)); err == nil {
-			s, pj := m.OfferedModes(board)
+		// The chosen preset's peripherals decide which storage/project modes to offer.
+		if info, ok := manifest.FindPreset(o.PhpEsp32Dir, presetKey); ok {
+			board := presetBoard(info)
+			s, pj := m.OfferedModes(&board)
 			if !o.Yes {
 				storage = pickMode(p, "Storage type", s, "microsd")
 				projType = pickMode(p, "Project type", pj, "init-loop")
@@ -114,12 +116,11 @@ func runInit(out io.Writer, p prompt.Prompter, o initOpts) error {
 	}
 
 	cfg := &config.Config{
-		Name:        name,
-		StorageType: storage,
-		Type:        projType,
-		Board:       config.BoardConfig{Target: boardKey, Port: port},
-		Extensions:  exts,
-		Php:         config.PhpConfig{Src: "project-src", Entry: "index.php", Version: phpVersion},
+		Name:       name,
+		Type:       projType,
+		Esp32:      config.Esp32Config{Preset: presetKey, Port: port, StorageType: storage},
+		Extensions: exts,
+		Php:        config.PhpConfig{Src: "project-src", Entry: "index.php", Version: phpVersion},
 	}
 
 	if o.Force {
@@ -137,39 +138,41 @@ func runInit(out io.Writer, p prompt.Prompter, o initOpts) error {
 	return nil
 }
 
-// fullBoard accepts "family/board" as-is; a bare board name is resolved against boards/*/.
-func fullBoard(board, phpEsp32Dir string) string {
-	if filepath.Dir(board) != "." {
-		return board
+// presetBoard synthesizes a manifest.Board from a preset's peripherals, so OfferedModes can decide
+// which storage/project types to offer: a card slot adds `microsd`; a network (wired or the chip's
+// on-die radio) adds `web-server`.
+func presetBoard(info manifest.BoardInfo) manifest.Board {
+	storage := []string{"embedded"}
+	if info.MicroSD {
+		storage = []string{"microsd", "embedded"}
 	}
-	matches, _ := filepath.Glob(filepath.Join(phpEsp32Dir, "boards", "*", board))
-	if len(matches) == 1 {
-		rel, _ := filepath.Rel(filepath.Join(phpEsp32Dir, "boards"), matches[0])
-		return filepath.ToSlash(rel)
+	project := []string{"init-loop", "event-driven"}
+	if info.Network != "none" {
+		project = append(project, "web-server")
 	}
-	return board
+	return manifest.Board{StorageTypes: storage, ProjectTypes: project, Network: info.Network}
 }
 
-func pickFamily(p prompt.Prompter, fams []manifest.Family) manifest.Family {
+func pickChip(p prompt.Prompter, fams []manifest.Family) manifest.Family {
 	opts := make([]prompt.Option, len(fams))
 	for i, f := range fams {
 		opts[i] = prompt.Option{Label: f.Name + " (" + f.Key + ")"}
 	}
-	i, _ := p.Select("Chip family", opts, 0)
+	i, _ := p.Select("Chip", opts, 0)
 	return fams[i]
 }
 
-func pickBoard(p prompt.Prompter, boards []manifest.BoardInfo, def string) string {
-	opts := make([]prompt.Option, len(boards))
+func pickPreset(p prompt.Prompter, presets []manifest.BoardInfo, def string) manifest.BoardInfo {
+	opts := make([]prompt.Option, len(presets))
 	d := 0
-	for i, b := range boards {
+	for i, b := range presets {
 		opts[i] = prompt.Option{Label: b.Name + " (" + b.Key + ")"}
 		if b.Key == def {
 			d = i
 		}
 	}
-	i, _ := p.Select("Board", opts, d)
-	return boards[i].Key
+	i, _ := p.Select("Board preset", opts, d)
+	return presets[i]
 }
 
 func pickMode(p prompt.Prompter, label string, modes []manifest.Mode, def string) string {

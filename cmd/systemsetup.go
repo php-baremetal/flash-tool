@@ -73,28 +73,28 @@ func firstNonEmpty(vs ...string) string {
 
 func cfgIdfPath(c *config.Config) string {
 	if c != nil {
-		return c.EspIdf.Path
+		return c.Esp32.Idf.Path
 	}
 	return ""
 }
 
 func cfgIdfVersion(c *config.Config) string {
 	if c != nil {
-		return c.EspIdf.Version
+		return c.Esp32.Idf.Version
 	}
 	return ""
 }
 
 func cfgPhpPath(c *config.Config) string {
 	if c != nil {
-		return c.PhpEsp32.Path
+		return c.Esp32.Sdk.Path
 	}
 	return ""
 }
 
 func cfgPhpVersion(c *config.Config) string {
 	if c != nil {
-		return c.PhpEsp32.Version
+		return c.Esp32.Sdk.Version
 	}
 	return ""
 }

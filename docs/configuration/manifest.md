@@ -251,7 +251,7 @@ There is no standalone `phpflash context` command to print this. The resolution 
 the manifest into the concrete `idf.py` invocation. In order it:
 
 <!-- @steps -->
-1. Loads `php-esp32.config.toml` (overlaying `…local.toml`) and resolves the ESP-IDF and php-esp32
+1. Loads `php-baremetal.config.toml` (overlaying `…local.toml`) and resolves the ESP-IDF and php-esp32
    paths by the flag > config > env > default precedence.
 2. Loads `php-esp32.toml` for the default PHP version, then the project's pinned `[php] version` (or
    that default), failing with the installed list if the version is not present.

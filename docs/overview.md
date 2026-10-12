@@ -23,19 +23,19 @@ follow install the tool and scaffold a first project.
 
 ## The shape of a project
 
-A project is a folder with two parts: a `php-esp32.config.toml` that records the choices, and a
+A project is a folder with two parts: a `php-baremetal.config.toml` that records the choices, and a
 `project-src/` that holds the PHP you deploy. You write the code; `phpflash` reads the config and
 does the rest. `project-src/` is the deployable, kept apart from the config and the build output.
 
-<!-- @code-block language="toml" label="php-esp32.config.toml — a short one" -->
+<!-- @code-block language="toml" label="php-baremetal.config.toml — a short one" -->
 ```toml
 name         = "my-project"
-storage_type = "microsd"      # microsd | embedded
 type         = "init-loop"    # init-loop | web-server | event-driven
 
-[board]
+[esp32]
 target = "esp32-p4-pico"      # its family decides the ESP-IDF target
 port   = ""                   # empty = autodetect at flash time
+storage_type = "microsd"      # microsd | embedded
 
 [php]
 src     = "project-src"
@@ -44,7 +44,7 @@ version = ""                  # empty = the firmware's default PHP version
 ```
 <!-- @endcode-block -->
 
-A sibling `php-esp32.config.local.toml`, if present, is overlaid on top for machine-specific tweaks
+A sibling `php-baremetal.config.local.toml`, if present, is overlaid on top for machine-specific tweaks
 (a serial port, a toolchain path) and is git-ignored.
 
 ## The whole workflow at a glance

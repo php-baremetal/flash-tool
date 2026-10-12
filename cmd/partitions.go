@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"phpflash/internal/config"
-	"phpflash/internal/manifest"
 )
 
 func newPartitionsCmd() *cobra.Command {
@@ -40,22 +39,22 @@ func newPartitionsPublishCmd() *cobra.Command {
 				return fmt.Errorf("no %s in this directory (run `phpflash init` first): %w", config.FileName, err)
 			}
 			_, phpDir := resolveDirs("", phpFlag, cfg)
-			boardDir, ok := manifest.BoardDir(phpDir, cfg.Board.Target)
-			if !ok {
-				return fmt.Errorf("board %q not found in %s (run `phpflash system-setup`?)", cfg.Board.Target, phpDir)
+			boardDir, label, flashK, err := resolvePartitionSource(cfg, phpDir)
+			if err != nil {
+				return err
 			}
 			out := config.PartitionsFileName
 			if _, err := os.Stat(out); err == nil && !force {
 				return fmt.Errorf("%s already exists (use --force to overwrite)", out)
 			}
-			content, err := renderProjectPartitions(boardDir, cfg.Board.Target)
+			content, err := renderProjectPartitions(boardDir, label, flashK)
 			if err != nil {
 				return err
 			}
 			if err := os.WriteFile(out, []byte(content), 0o644); err != nil {
 				return err
 			}
-			fmt.Printf("created ./%s (from board %q)\n", out, cfg.Board.Target)
+			fmt.Printf("created ./%s (from %q)\n", out, label)
 			fmt.Printf("Edit the fixed partitions; `phpflash build` uses it automatically (delete to revert).\n")
 			return nil
 		},
@@ -65,10 +64,27 @@ func newPartitionsPublishCmd() *cobra.Command {
 	return c
 }
 
-// renderProjectPartitions builds the project partitions.csv from a board's committed table: a
-// guidance header, the column header, and the board's fixed partition rows (nvs, phy_init,
-// factory, ...). The auto-generated `storage`/`phpstore` rows are dropped -- the build appends them.
-func renderProjectPartitions(boardDir, boardKey string) (string, error) {
+// resolvePartitionSource finds the chip directory whose committed partitions.csv to publish from, a
+// label for messages, and the selected board's flash size (KiB). The preset/family resolves to its
+// chip directory, where the base table lives.
+func resolvePartitionSource(cfg *config.Config, phpDir string) (boardDir, label string, flashK int, err error) {
+	if cfg.Esp32.Preset == "" && cfg.Esp32.Family == "" {
+		return "", "", 0, fmt.Errorf("no board selected: set [esp32] preset or family in %s", config.FileName)
+	}
+	tmp, _ := os.MkdirTemp("", "phpflash-part-")
+	defer os.RemoveAll(tmp)
+	res, e := resolveBoard(cfg, phpDir, tmp)
+	if e != nil {
+		return "", "", 0, e
+	}
+	chip := strings.SplitN(res.BoardKey, "/", 2)[0]
+	return filepath.Join(phpDir, "boards", chip), res.BoardKey, res.FlashKB, nil
+}
+
+// renderProjectPartitions builds the project partitions.csv from a chip's committed table: a
+// guidance header, the column header, and the chip's fixed partition rows (nvs, phy_init, ...). The
+// auto-generated `factory`/`storage`/`phpstore` rows are dropped -- the build appends them.
+func renderProjectPartitions(boardDir, boardKey string, flashK int) (string, error) {
 	raw, err := os.ReadFile(filepath.Join(boardDir, config.PartitionsFileName))
 	if err != nil {
 		return "", fmt.Errorf("read board partition table: %w", err)
@@ -90,9 +106,16 @@ func renderProjectPartitions(boardDir, boardKey string) (string, error) {
 		}
 		rows = append(rows, strings.TrimRight(line, " \t"))
 	}
-	flash := boardFlashSize(boardDir)
+	flash := ""
+	if flashK > 0 {
+		if flashK%1024 == 0 {
+			flash = fmt.Sprintf("%dMB", flashK/1024)
+		} else {
+			flash = fmt.Sprintf("%dKB", flashK)
+		}
+	}
 	var b strings.Builder
-	b.WriteString(partitionsHeader(boardKey, flash, factoryTable(boardKey, parseSizeK(flash), defFactoryK)))
+	b.WriteString(partitionsHeader(boardKey, flash, factoryTable(boardKey, flashK, defFactoryK)))
 	b.WriteString("# Name,     Type, SubType,  Offset,   Size\n")
 	for _, r := range rows {
 		b.WriteString(r + "\n")
@@ -165,24 +188,6 @@ func factoryTable(boardKey string, flashK, defK int) string {
 	}
 	b.WriteString("#\n")
 	return b.String()
-}
-
-// boardFlashSize reads the human flash size (e.g. "4MB") from a board's sdkconfig.board, for the
-// guidance header. Returns "" when it can't be found.
-func boardFlashSize(boardDir string) string {
-	raw, err := os.ReadFile(filepath.Join(boardDir, "sdkconfig.board"))
-	if err != nil {
-		return ""
-	}
-	for _, line := range strings.Split(string(raw), "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, `CONFIG_ESPTOOLPY_FLASHSIZE=`) && strings.Contains(line, `"`) {
-			if parts := strings.SplitN(line, `"`, 3); len(parts) >= 2 {
-				return parts[1]
-			}
-		}
-	}
-	return ""
 }
 
 func partitionsHeader(boardKey, flash, factoryTable string) string {

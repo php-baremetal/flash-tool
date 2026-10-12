@@ -27,7 +27,7 @@ func testManifest() *manifest.Manifest {
 func TestArgsDeterministic(t *testing.T) {
 	cfg := &config.Config{
 		Type:  "init-loop",
-		Board: config.BoardConfig{Target: "esp32-p4-pico"},
+		Esp32: config.Esp32Config{Preset: "waveshare-esp32-p4-pico"},
 		Extensions: map[string]config.Extension{
 			"sqlite": {Enabled: true},
 		},
@@ -36,11 +36,12 @@ func TestArgsDeterministic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Args no longer emits -DBOARD; the caller appends it from the resolved preset.
 	want := []string{
-		"-DBOARD=esp32-p4-pico", "-DPHP_VERSION=8.3.32", "-DPHP_CPU_FREQ_MHZ=", "-DPHP_POWER_SAVE=OFF", "-DPHP_SECURE=OFF", "-DPHP_SECURE_BOOT=OFF",
+		"-DPHP_VERSION=8.3.32", "-DPHP_CPU_FREQ_MHZ=", "-DPHP_POWER_SAVE=OFF", "-DPHP_SECURE=OFF", "-DPHP_SECURE_BOOT=OFF",
 		"-DPHP_EXT_DATE=OFF", "-DPHP_EXT_DATE_MINIMAL_TZ=OFF", "-DPHP_EXT_SQLITE=ON",
 		"-DPHP_STORAGE_MICROSD=ON", "-DPHP_STORAGE_RESERVE_KB=0", "-DPHP_STORE_KB=0",
-		"-DPHP_S3_RGB_GPIO=48", "-DPHP_I2C_DRIVERS=", "-DPHP_SPI_DRIVERS=",
+		"-DPHP_I2C_DRIVERS=", "-DPHP_SPI_DRIVERS=", "-DPHP_LED_DRIVERS=",
 	}
 	if !reflect.DeepEqual(dargs, want) {
 		t.Errorf("dargs = %v\nwant %v", dargs, want)
@@ -59,7 +60,7 @@ func TestArgsProjectTypeFlag(t *testing.T) {
 		Extensions: []manifest.Extension{},
 	}
 	// web-server selected -> flag ON
-	ws := &config.Config{Type: "web-server", Board: config.BoardConfig{Target: "esp32-p4-eth"}}
+	ws := &config.Config{Type: "web-server", Esp32: config.Esp32Config{Preset: "waveshare-esp32-p4-eth"}}
 	dargs, _, err := Args(ws, m, "8.3.32")
 	if err != nil {
 		t.Fatal(err)
@@ -68,7 +69,7 @@ func TestArgsProjectTypeFlag(t *testing.T) {
 		t.Errorf("web-server: want PHP_PROJECT_WEB_SERVER=ON, got %v", dargs)
 	}
 	// init-loop selected -> the same flag explicitly OFF (deterministic)
-	il := &config.Config{Type: "init-loop", Board: config.BoardConfig{Target: "esp32-p4-pico"}}
+	il := &config.Config{Type: "init-loop", Esp32: config.Esp32Config{Preset: "waveshare-esp32-p4-pico"}}
 	dargs, _, _ = Args(il, m, "8.3.32")
 	if !contains(dargs, "-DPHP_PROJECT_WEB_SERVER=OFF") {
 		t.Errorf("init-loop: want PHP_PROJECT_WEB_SERVER=OFF, got %v", dargs)
@@ -81,7 +82,7 @@ func TestArgsCPUFreq(t *testing.T) {
 		Extensions:   []manifest.Extension{},
 	}
 	// set -> -DPHP_CPU_FREQ_MHZ=400
-	set := &config.Config{Type: "init-loop", Board: config.BoardConfig{Target: "esp32-p4-eth", CPUFreqMHz: 400}}
+	set := &config.Config{Type: "init-loop", Esp32: config.Esp32Config{Preset: "waveshare-esp32-p4-eth", CPUFreqMHz: 400}}
 	dargs, _, err := Args(set, m, "8.3.32")
 	if err != nil {
 		t.Fatal(err)
@@ -90,7 +91,7 @@ func TestArgsCPUFreq(t *testing.T) {
 		t.Errorf("cpu_freq_mhz=400: want -DPHP_CPU_FREQ_MHZ=400, got %v", dargs)
 	}
 	// unset -> flag still emitted, empty (so a reused build dir can't keep a stale value)
-	unset := &config.Config{Type: "init-loop", Board: config.BoardConfig{Target: "esp32-p4-eth"}}
+	unset := &config.Config{Type: "init-loop", Esp32: config.Esp32Config{Preset: "waveshare-esp32-p4-eth"}}
 	dargs, _, _ = Args(unset, m, "8.3.32")
 	if !contains(dargs, "-DPHP_CPU_FREQ_MHZ=") {
 		t.Errorf("unset: want empty -DPHP_CPU_FREQ_MHZ=, got %v", dargs)
@@ -107,9 +108,9 @@ func TestArgsMicrosdFlag(t *testing.T) {
 		cfg     *config.Config
 		wantOn  bool
 	}{
-		{"microsd type -> ON", &config.Config{Type: "init-loop", StorageType: "microsd"}, true},
-		{"embedded default -> OFF", &config.Config{Type: "init-loop", StorageType: "embedded"}, false},
-		{"embedded opt-in -> ON", &config.Config{Type: "init-loop", StorageType: "embedded", Storage: config.StorageConfig{Microsd: true}}, true},
+		{"microsd type -> ON", &config.Config{Type: "init-loop", Esp32: config.Esp32Config{StorageType: "microsd"}}, true},
+		{"embedded default -> OFF", &config.Config{Type: "init-loop", Esp32: config.Esp32Config{StorageType: "embedded"}}, false},
+		{"embedded opt-in -> ON", &config.Config{Type: "init-loop", Esp32: config.Esp32Config{StorageType: "embedded", Storage: config.StorageConfig{Microsd: true}}}, true},
 		{"unset -> ON (safe default)", &config.Config{Type: "init-loop"}, true},
 	}
 	for _, c := range cases {
@@ -231,7 +232,7 @@ func TestDNSArg(t *testing.T) {
 		t.Errorf("no dns should emit no flag")
 	}
 	// comma-joined (never ';', which CMake would split)
-	arg, ok := DNSArg(&config.Config{Network: config.NetworkConfig{Dns: []string{"1.1.1.1", "8.8.8.8"}}})
+	arg, ok := DNSArg(&config.Config{Esp32: config.Esp32Config{Network: config.NetworkConfig{Dns: []string{"1.1.1.1", "8.8.8.8"}}}})
 	if !ok || arg != "-DPHP_NET_DNS=1.1.1.1,8.8.8.8" {
 		t.Errorf("DNSArg = %q, %v", arg, ok)
 	}
@@ -357,26 +358,26 @@ func contains(xs []string, v string) bool {
 
 func TestEmbedArg(t *testing.T) {
 	// microsd: nothing to embed.
-	msd := &config.Config{StorageType: "microsd", Php: config.PhpConfig{Src: "project-src"}}
+	msd := &config.Config{Esp32: config.Esp32Config{StorageType: "microsd"}, Php: config.PhpConfig{Src: "project-src"}}
 	if arg, ok := EmbedArg(msd, "/proj"); ok {
 		t.Errorf("microsd should not embed, got %q", arg)
 	}
 
 	// embedded: source dir resolved absolute against the project dir.
-	emb := &config.Config{StorageType: "embedded", Php: config.PhpConfig{Src: "project-src"}}
+	emb := &config.Config{Esp32: config.Esp32Config{StorageType: "embedded"}, Php: config.PhpConfig{Src: "project-src"}}
 	arg, ok := EmbedArg(emb, "/proj")
 	if !ok || arg != "-DPHP_EMBED_SRC=/proj/project-src" {
 		t.Errorf("EmbedArg = %q, %v", arg, ok)
 	}
 
 	// embedded with an empty src falls back to project-src.
-	def := &config.Config{StorageType: "embedded"}
+	def := &config.Config{Esp32: config.Esp32Config{StorageType: "embedded"}}
 	if arg, _ := EmbedArg(def, "/proj"); arg != "-DPHP_EMBED_SRC=/proj/project-src" {
 		t.Errorf("default src arg = %q", arg)
 	}
 
 	// an absolute src is used as-is.
-	abs := &config.Config{StorageType: "embedded", Php: config.PhpConfig{Src: "/abs/src"}}
+	abs := &config.Config{Esp32: config.Esp32Config{StorageType: "embedded"}, Php: config.PhpConfig{Src: "/abs/src"}}
 	if arg, _ := EmbedArg(abs, "/proj"); arg != "-DPHP_EMBED_SRC=/abs/src" {
 		t.Errorf("absolute src arg = %q", arg)
 	}
@@ -540,7 +541,7 @@ func TestArgsEnumSetting(t *testing.T) {
 	}
 	base := func(opts map[string]string) *config.Config {
 		return &config.Config{
-			Type: "init-loop", Board: config.BoardConfig{Target: "esp32-s3-pico"},
+			Type: "init-loop", Esp32: config.Esp32Config{Preset: "waveshare-esp32-s3-eth"},
 			Extensions: map[string]config.Extension{"sqlite": {Enabled: true, Options: opts}},
 		}
 	}

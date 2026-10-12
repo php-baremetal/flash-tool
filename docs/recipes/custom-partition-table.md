@@ -106,9 +106,9 @@ factory,    app,  factory,  ,         3200K
 
 Turn the store on in the config so a `phpstore` partition is appended:
 
-<!-- @code-block language="toml" label="php-esp32.config.toml" -->
+<!-- @code-block language="toml" label="php-baremetal.config.toml" -->
 ```toml
-[board]
+[esp32]
 target = "esp32-s3-zero"
 
 [store]

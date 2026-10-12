@@ -16,18 +16,21 @@ func newBuildCmd() *cobra.Command {
 		Use:   "build",
 		Short: "Build the firmware for this project (drives ESP-IDF)",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// A failed configure leaves negative results cached (e.g. "compiler identification is
+			// unknown"), which then repeat even after the environment is fixed. --clean wipes the
+			// build directory first so the next build reconfigures from scratch. It must run BEFORE
+			// loadBuildContext, which writes generated files (the preset sdkconfig fragment, a baked
+			// .env) into the build dir -- wiping afterwards would delete them and the configure fails.
+			if clean {
+				bd := projectBuildDir()
+				fmt.Fprintf(os.Stdout, "Removing %s (clean build)\n", bd)
+				if err := os.RemoveAll(bd); err != nil {
+					return err
+				}
+			}
 			bc, err := loadBuildContext(idfPath, phpPath)
 			if err != nil {
 				return err
-			}
-			// A failed configure leaves negative results cached (e.g. "compiler identification is
-			// unknown"), which then repeat even after the environment is fixed. --clean wipes the
-			// build directory first so the next build reconfigures from scratch.
-			if clean {
-				fmt.Fprintf(os.Stdout, "Removing %s (clean build)\n", bc.buildDir)
-				if err := os.RemoveAll(bc.buildDir); err != nil {
-					return err
-				}
 			}
 			// Render the build as phases + a progress bar; keep the raw output so we
 			// can replay it if the build fails.

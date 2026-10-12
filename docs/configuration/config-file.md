@@ -1,6 +1,6 @@
 ---
 eyebrow: 'Docs · Configuration'
-lede:    'Every option in a project''s php-esp32.config.toml — the file phpflash init writes and the other commands read: the top-level name/storage/type, the board, the toolchain and firmware sources, storage, network, the web-server hook, the PHP source and version, and one table per enabled extension. Plus the local override and how paths and versions resolve.'
+lede:    'Every option in a project''s php-baremetal.config.toml — the file phpflash init writes and the other commands read: the portable header (name, type, PHP source and version, extensions, env, store, web-server) and the [esp32] backend block (board, toolchain, storage, network, security and power). Plus the local override and how paths and versions resolve.'
 see_also:
   - { href: './manifest.md', meta: 'Configuration', label: 'The php-esp32 manifest' }
   - { href: '../getting-started/quick-start.md', meta: '10 min', label: 'Quick start' }
@@ -11,26 +11,29 @@ next: { label: 'The php-esp32 manifest', href: './manifest.md' }
 
 # The project config file
 
-Every project is a `php-esp32.config.toml` plus a `project-src/` folder. The config picks the board,
-where the PHP source lives, how it runs, and which extensions to compile. `phpflash init` writes this
-file interactively; `build`, `flash` and `monitor` read it. If you scaffold with `init` you rarely
-touch it by hand, but this is the full picture — every key, its type and default, and where it applies.
+Every project is a `php-baremetal.config.toml` plus a `project-src/` folder. The config is
+backend-neutral: a **portable header** (`name`, `type`, `[php]`, `[extensions.*]`, `[env]`, `[store]`,
+`[web-server]`) describes the app itself, and a **backend block** carries everything specific to
+building it for a given chip family. Today the only backend block is `[esp32]`; the same project could
+grow an `[stm32]`/`[nxp]` block later, and only the matching backend's tool reads its block. `phpflash
+init` writes this file interactively; `build`, `flash` and `monitor` read it. If you scaffold with
+`init` you rarely touch it by hand, but this is the full picture — every key, its type and default.
 
-Everything except the name, a storage type, an execution type and a board has a default and can be
-omitted. A minimal file is four lines and a table:
+Everything except the name, an execution type and a board has a default and can be omitted. A minimal
+file is two lines and a table:
 
-<!-- @code-block language="toml" label="php-esp32.config.toml — minimal" -->
+<!-- @code-block language="toml" label="php-baremetal.config.toml — minimal" -->
 ```toml
 name         = "my-project"
-storage_type = "microsd"
 type         = "init-loop"
 
-[board]
+[esp32]
 target = "esp32-p4-pico"
+storage_type = "microsd"
 ```
 <!-- @endcode-block -->
 
-The sections below are in the order `init` writes them.
+The sections below cover the portable header first, then the `[esp32]` backend block and its subtables.
 
 <!-- @callout variant="info" title="phpflash holds no hard-coded hardware knowledge" -->
 The boards, the storage and execution modes, the PHP versions, and the extensions with their settings
@@ -40,30 +43,42 @@ values are *valid* for your install is decided by the firmware — see [the php-
 manifest](./manifest.md).
 <!-- @endcallout -->
 
-## Top level
+## Top level (portable header)
 
-The three keys that every project sets, at the root of the file.
+The portable keys describe the app and mean the same for any backend.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `name` | string | the directory name | The project name. Cosmetic; used in scaffolding and messages. |
-| `storage_type` | string | `microsd` | Where the PHP source lives: `microsd` (read from a FAT card) or `embedded` (baked into a read-only flash image). Limited to what the board supports. |
 | `type` | string | `init-loop` | The execution model: `init-loop` (run the script, then `setup()` once and `loop($tick)` repeatedly), `web-server` (an HTTP server runs PHP per request; needs a networked board), or `event-driven` (reserved). |
 
-`storage_type` and `type` are orthogonal, and both are drawn from php-esp32: a mode is offered only
-when it is *both* implemented by the firmware *and* supported by the chosen board. That is why a
-`-Zero` board (no card slot) offers only `embedded`, and a board with no network never offers
-`web-server`.
+The rest of the portable header is the `[php]`, `[extensions.*]`, `[env]`, `[store]` and `[web-server]`
+tables documented below. **Extensions are the app's intent** — a backend provides each through its own
+HAL and validates which it can supply; the pins a driver needs are passed at runtime from PHP, so they
+stay portable too.
 
-## `[board]`
+## `[esp32]` — the ESP32 backend
 
-The board and how phpflash reaches it over serial.
+The board, how phpflash reaches it over serial, where the source lives on the chip, and the
+security/power switches. Everything in this block (and its `[esp32.*]` subtables) is specific to
+building for Espressif chips.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `target` | string | `esp32-p4-pico` | The board key, for example `esp32-p4-pico`, `esp32-p4-eth`, `esp32-s3-eth`. Its family decides the ESP-IDF target (an `esp32-s3-*` board builds for `esp32s3`). `phpflash discover` prints the key for a connected board. |
+| `preset` | string | — | A vendor-model preset over a chip/mode, for example `waveshare-esp32-s3-eth`. Selects the board and its wiring; `phpflash discover` helps pick one. |
+| `family` | string | — | Alternative to `preset`: a chip/mode's generic preset, for example `esp32-s3/octal`. |
+| `target` | string | `esp32-p4-pico` | Legacy board key, for example `esp32-p4-pico`, `esp32-p4-eth`. Used when neither `preset` nor `family` is set. `phpflash discover` prints the key for a connected board. |
 | `port` | string | `""` (autodetect) | Serial port for flash and monitor, for example `/dev/ttyACM0`. Empty means autodetect at flash time. Best kept in the local override, not the committed config. |
 | `cpu_freq_mhz` | int | `0` (board default) | Override the CPU clock, passed to the firmware as `-DPHP_CPU_FREQ_MHZ`. `0` or absent uses the board default (360 MHz on the P4). On a P4 the choices are 360 and 400; 400 on a pre-3.0 chip is experimental and can be unstable. |
+| `storage_type` | string | `microsd` | Where the PHP source lives: `microsd` (read from a FAT card) or `embedded` (baked into a read-only flash image). Limited to what the board supports — a `-Zero` board (no card slot) offers only `embedded`. |
+| `power_save` | bool | `false` | Enable esp_pm automatic light sleep (the event-driven reactor sleeps between events). |
+| `secure` | bool | `false` | Flash Encryption (dev mode): the flash image is unreadable off the chip. |
+| `secure_boot` | bool | `false` | Secure Boot v2: only firmware signed with your per-unit key boots. The build auto-provisions a signing key at `secure_boot_keys_dir/<MAC>.pem`. |
+| `secure_boot_keys_dir` | string | `./deploys` | Where the per-unit signing keys live. Keys are secrets — keep them out of version control. |
+
+`storage_type` and `type` are orthogonal, and both are drawn from php-esp32: a mode is offered only
+when it is *both* implemented by the firmware *and* supported by the chosen board. That is why a board
+with no network never offers `web-server`.
 
 <!-- @callout variant="tip" title="Port autodetection order" -->
 When `port` is empty and no `-p` flag is given, phpflash picks the first serial device that exists —
@@ -72,7 +87,7 @@ autodetect. Because it never opens the port, detection cannot hang on or disturb
 the board.
 <!-- @endcallout -->
 
-## `[esp-idf]` and `[php-esp32]`
+## `[esp32.idf]` and `[esp32.sdk]`
 
 Where the toolchain and the firmware sources live, and which version to use. Both keys of both tables
 can be empty, in which case the default applies. See [Path and version
@@ -80,12 +95,12 @@ resolution](#path-and-version-resolution) below for the full precedence.
 
 | Table | Key | Type | Default | Meaning |
 |---|---|---|---|---|
-| `[esp-idf]` | `path` | string | `~/esp/esp-idf` | The ESP-IDF checkout. |
-| `[esp-idf]` | `version` | string | the version php-esp32 targets | A git ref (for example `v5.5.5`) `system-setup` checks out. |
-| `[php-esp32]` | `path` | string | `~/esp/php-esp32` | The php-esp32 firmware checkout. |
-| `[php-esp32]` | `version` | string | the default branch | A git ref for the firmware. |
+| `[esp32.idf]` | `path` | string | `~/esp/esp-idf` | The ESP-IDF checkout. |
+| `[esp32.idf]` | `version` | string | the version php-esp32 targets | A git ref (for example `v5.5.5`) `system-setup` checks out. |
+| `[esp32.sdk]` | `path` | string | `~/esp/php-esp32` | The php-esp32 firmware checkout. |
+| `[esp32.sdk]` | `version` | string | the default branch | A git ref for the firmware. |
 
-## `[storage]`
+## `[esp32.storage]`
 
 Only meaningful for an `embedded` project, and written by `init` only in that case. A `microsd`
 project always has the card, so neither key applies to it.
@@ -95,7 +110,7 @@ project always has the card, so neither key applies to it.
 | `microsd` | bool | `false` | For an `embedded` project, also mount a microSD for writable data alongside the baked-in source. Off means the SD drivers are not even compiled in. |
 | `reserve_kb` | int | `0` (just fit the source) | Pads the embedded `storage` partition: the firmware sizes it to the source plus FAT overhead and adds this many KB on top. Headroom for a larger source, not runtime growth — the image is read-only. |
 
-## `[network]`
+## `[esp32.network]`
 
 For a board with a network. Optional.
 
@@ -128,7 +143,7 @@ One table per enabled optional extension. The always-on extensions (`standard`, 
 carries `enabled = true` plus any settings that extension declares — a bool per toggle, a string per
 path:
 
-<!-- @code-block language="toml" label="php-esp32.config.toml — extension tables" -->
+<!-- @code-block language="toml" label="php-baremetal.config.toml — extension tables" -->
 ```toml
 [extensions.mbstring]
 enabled = true
@@ -201,19 +216,19 @@ The full behaviour is on the [build-time environment](https://github.com/php-bar
 [persistent store](https://github.com/php-baremetal/php-esp32/blob/master/docs/storage/persistent-store.md) pages. The volatile in-RAM store
 (`mem_*`) needs no config at all.
 
-## Local overrides: `php-esp32.config.local.toml`
+## Local overrides: `php-baremetal.config.local.toml`
 
-If a `php-esp32.config.local.toml` sits next to the config, every command overlays it: keys it sets
+If a `php-baremetal.config.local.toml` sits next to the config, every command overlays it: keys it sets
 win, everything else keeps the committed value. `init` never creates it, the scaffolded `.gitignore`
 lists it, and it is for machine-specific tweaks that should not be committed — typically the serial
 port or a local toolchain path.
 
-<!-- @code-block language="toml" label="php-esp32.config.local.toml" -->
+<!-- @code-block language="toml" label="php-baremetal.config.local.toml" -->
 ```toml
-[board]
+[esp32]
 port = "/dev/ttyACM1"
 
-[esp-idf]
+[esp32.idf]
 path = "/opt/esp-idf"
 ```
 <!-- @endcode-block -->
@@ -224,11 +239,11 @@ table keys, and for the extra bool/string keys inside an `[extensions.<name>]` t
 
 ## Path and version resolution
 
-For the `[esp-idf]` and `[php-esp32]` paths and versions, the highest available source wins:
+For the `[esp32.idf]` and `[esp32.sdk]` paths and versions, the highest available source wins:
 
 <!-- @steps -->
 1. **CLI flag** — `--idf-path`, `--php-esp32-path`, `--idf-version`, `--php-esp32-version`.
-2. **`php-esp32.config.toml`** — the `path` and `version` keys above (a `local.toml` overlays these).
+2. **`php-baremetal.config.toml`** — the `path` and `version` keys above (a `local.toml` overlays these).
 3. **Environment** — `IDF_PATH`, `PHP_ESP32_DIR`.
 4. **Default** — `~/esp/esp-idf` and `~/esp/php-esp32`.
 <!-- @endsteps -->
@@ -240,26 +255,26 @@ rather than blanking it.
 
 Every option at once, for reference. Real configs are much shorter, since almost everything defaults.
 
-<!-- @code-block language="toml" label="php-esp32.config.toml — annotated" -->
+<!-- @code-block language="toml" label="php-baremetal.config.toml — annotated" -->
 ```toml
 name         = "sensor-gateway"
-storage_type = "microsd"          # microsd | embedded
 type         = "web-server"       # init-loop | web-server | event-driven
 
-[board]
+[esp32]
 target       = "esp32-s3-eth"     # board key; its family sets the ESP-IDF target
 port         = ""                 # empty = autodetect at flash time
 cpu_freq_mhz = 0                  # 0 = board default
+storage_type = "microsd"          # microsd | embedded
 
-[esp-idf]
+[esp32.idf]
 path    = ""                      # empty = ~/esp/esp-idf
 version = "v5.5.5"                # git ref system-setup checks out
 
-[php-esp32]
+[esp32.sdk]
 path    = ""                      # empty = ~/esp/php-esp32
 version = ""                      # empty = the default branch
 
-[network]
+[esp32.network]
 dns = ["1.1.1.1", "8.8.8.8"]      # static DNS applied after DHCP
 
 [web-server]

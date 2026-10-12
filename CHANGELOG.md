@@ -43,7 +43,7 @@
   much each `factory` leaves for the generated `storage`/`phpstore` partitions. `--force` overwrites an
   existing file; `--php-esp32-path` points at the firmware checkout. See
   [docs/recipes/custom-partition-table.md](docs/recipes/custom-partition-table.md).
-- **Per-project partition table.** When a `partitions.csv` sits next to `php-esp32.config.toml`,
+- **Per-project partition table.** When a `partitions.csv` sits next to `php-baremetal.config.toml`,
   `build` passes `-DPHP_PARTITIONS_CSV` and the firmware uses it as the fixed-partition spec instead of
   the board's committed table (the generated `storage`/`phpstore` partitions are still appended). The
   build announces `using project partition table`; delete the file to revert to the board default.
@@ -87,7 +87,7 @@
   `-DPHP_STORAGE_RESERVE_KB` so an embedded project can pad its flash `storage` partition beyond the
   source (0 = just fit it). A microSD project has no `storage` partition, so the erase step on flash
   is now a no-op there (it was already tolerant of a missing partition).
-- **`.env` support** — phpflash reads a project's `.env` (next to `php-esp32.config.toml`), parses it
+- **`.env` support** — phpflash reads a project's `.env` (next to `php-baremetal.config.toml`), parses it
   (`KEY=VALUE`, `#` comments, `export`, single/double quotes) and bakes it into the firmware, where
   PHP exposes it as `$_ENV` and `getenv()`. Configurable via `[env]` (`enabled`, default on when the
   file exists; `file`, default `.env`). `phpflash init` now adds `.env` to the scaffolded
@@ -114,7 +114,7 @@
 ## [v0.4.0]
 
 ### Added
-- **Per-project PHP version** — `[php] version` in `php-esp32.config.toml` pins the PHP language
+- **Per-project PHP version** — `[php] version` in `php-baremetal.config.toml` pins the PHP language
   version to build (for example `8.5.9`), one of the versions installed under
   `components/php/versions/`. Empty follows `default_version` in the repo's `php-esp32.toml`, so
   existing configs are unaffected. `phpflash init` offers the installed versions when there is more
@@ -146,7 +146,7 @@
 ### Added
 
 #### Project lifecycle
-- `phpflash init [dir]` — scaffold a project (`php-esp32.config.toml`, `.gitignore`,
+- `phpflash init [dir]` — scaffold a project (`php-baremetal.config.toml`, `.gitignore`,
   `project-src/index.php`). Interactive with a default for every prompt, or `--yes` for defaults;
   `--force` to overwrite. Board, storage/execution modes and optional extensions are read live from
   the installed php-esp32, offering only what the firmware implements *and* the chosen board
@@ -183,9 +183,9 @@
   `-y`/`--yes` skips the prompt.
 
 #### Configuration & integration
-- `php-esp32.config.toml` schema: `name`, `storage_type`, `type`, `[board]`, `[esp-idf]`,
+- `php-baremetal.config.toml` schema: `name`, `storage_type`, `type`, `[board]`, `[esp-idf]`,
   `[php-esp32]`, `[storage]`, `[network]`, `[extensions.<name>]` (bool + string settings), `[php]`.
-- `php-esp32.config.local.toml` — optional, git-ignored overlay for machine-specific tweaks.
+- `php-baremetal.config.local.toml` — optional, git-ignored overlay for machine-specific tweaks.
 - Path/version resolution: CLI flag → config → environment (`IDF_PATH`, `PHP_ESP32_DIR`) → default.
 - **Zero hard-coded hardware/extension knowledge**: extensions, flags, settings, boards and modes
   are all read from the installed php-esp32 at runtime (`php-esp32.toml`, the per-version

@@ -9,7 +9,7 @@ import (
 	"phpflash/internal/templates"
 )
 
-var ErrExists = errors.New("php-esp32.config.toml already exists")
+var ErrExists = errors.New("php-baremetal.config.toml already exists")
 
 type Answers struct {
 	Dir     string

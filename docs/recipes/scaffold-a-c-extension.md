@@ -42,7 +42,7 @@ buildable module entry with two example functions to replace.
 
 <!-- @callout variant="note" title="Run it where the config lives" -->
 `ext new` writes into `./firmware/exts/`, so run it from the directory holding your
-`php-esp32.config.toml`. If it finds no config there it still scaffolds, but prints a note reminding
+`php-baremetal.config.toml`. If it finds no config there it still scaffolds, but prints a note reminding
 you to run it from the project directory.
 <!-- @endcallout -->
 

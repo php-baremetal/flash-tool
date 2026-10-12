@@ -11,18 +11,18 @@ next: { label: 'Identify an unknown board', href: './identify-an-unknown-board.m
 
 # Bake a `.env`
 
-A project can carry a `.env` file next to its `php-esp32.config.toml`. When you build, `phpflash` reads that file, compiles its variables into the firmware image, and the running engine exposes them to PHP as `$_ENV` and through `getenv()`. Nothing is hardcoded in your PHP source and nothing has to live as a plaintext file on the microSD — the values travel inside the app image itself.
+A project can carry a `.env` file next to its `php-baremetal.config.toml`. When you build, `phpflash` reads that file, compiles its variables into the firmware image, and the running engine exposes them to PHP as `$_ENV` and through `getenv()`. Nothing is hardcoded in your PHP source and nothing has to live as a plaintext file on the microSD — the values travel inside the app image itself.
 
 This is for the configuration a build should carry with it: a device name, an endpoint, a sample rate, a feature flag, a token. The value is fixed at build time and constant for the whole run; you change it by editing `.env` and rebuilding, not at runtime.
 
 ## What you need
 
-- A project with a `php-esp32.config.toml` (from `phpflash init`).
+- A project with a `php-baremetal.config.toml` (from `phpflash init`).
 - A board flashed with php-esp32.
 
 ## The `.env`
 
-Put a `.env` next to `php-esp32.config.toml` in the project root. One `KEY=VALUE` per line. Keys are C-style identifiers (`[A-Za-z_][A-Za-z0-9_]*`); everything after the first `=` is the value.
+Put a `.env` next to `php-baremetal.config.toml` in the project root. One `KEY=VALUE` per line. Keys are C-style identifiers (`[A-Za-z_][A-Za-z0-9_]*`); everything after the first `=` is the value.
 
 <!-- @code-block language="ini" label=".env" -->
 ```ini
@@ -42,7 +42,7 @@ export TOKEN=abc123             # a leading `export` is ignored
 
 The feature is on by default: if a `.env` sits beside the config, it is baked in with no configuration at all. The `[env]` table exists only to override that default.
 
-<!-- @code-block language="toml" label="php-esp32.config.toml — the [env] knobs (optional)" -->
+<!-- @code-block language="toml" label="php-baremetal.config.toml — the [env] knobs (optional)" -->
 ```toml
 [env]
 enabled = true      # false turns baking off even when .env exists

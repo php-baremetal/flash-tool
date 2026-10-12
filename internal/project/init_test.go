@@ -15,8 +15,8 @@ func TestScaffoldWritesFiles(t *testing.T) {
 		Dir:     dir,
 		Starter: "hello",
 		Config: &config.Config{
-			Name: "demo", StorageType: "microsd", Type: "init-loop",
-			Board: config.BoardConfig{Target: "esp32-p4-pico"},
+			Name: "demo", Type: "init-loop",
+			Esp32: config.Esp32Config{StorageType: "microsd", Preset: "waveshare-esp32-p4-pico"},
 			Php:   config.PhpConfig{Src: "project-src", Entry: "index.php"},
 		},
 	}

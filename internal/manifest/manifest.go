@@ -146,11 +146,3 @@ func AvailableVersions(phpEsp32Dir string) ([]string, error) {
 	return vers, nil
 }
 
-func LoadBoard(phpEsp32Dir, board string) (*Board, error) {
-	var b Board
-	p := filepath.Join(phpEsp32Dir, "boards", filepath.FromSlash(board), "board.toml")
-	if err := decode(p, &b); err != nil {
-		return nil, err
-	}
-	return &b, nil
-}

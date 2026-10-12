@@ -16,14 +16,14 @@ An installed php-esp32 carries more than one PHP language version at once. Each 
 ## What you need
 
 - php-esp32 installed (`phpflash system-setup`), with at least one PHP version under `components/php/versions/`. A stock install ships several.
-- A project with a `php-esp32.config.toml` (from `phpflash init`).
+- A project with a `php-baremetal.config.toml` (from `phpflash init`).
 
 ## Which key controls it
 
-The version is `[php] version` in `php-esp32.config.toml`. Its value is one of the directory names under `components/php/versions/` — a full `MAJOR.MINOR.PATCH`, for example `8.5.9`. Empty (or absent) means "follow the repo default": `phpflash` reads `default_version` from php-esp32's `php-esp32.toml` and builds that.
+The version is `[php] version` in `php-baremetal.config.toml`. Its value is one of the directory names under `components/php/versions/` — a full `MAJOR.MINOR.PATCH`, for example `8.5.9`. Empty (or absent) means "follow the repo default": `phpflash` reads `default_version` from php-esp32's `php-esp32.toml` and builds that.
 
 <!-- @callout variant="warning" title="Not the same as [php-esp32] version" -->
-`[php] version` is the **PHP language** version — a directory under `components/php/versions/`. The unrelated `[php-esp32] version` in the `[php-esp32]` table is a **git ref for the firmware checkout** (which php-esp32 commit to use), not a PHP version. Set the PHP language version under `[php]`.
+`[php] version` is the **PHP language** version — a directory under `components/php/versions/`. The unrelated `[esp32.sdk] version` in the `[esp32.sdk]` table is a **git ref for the firmware checkout** (which php-esp32 commit to use), not a PHP version. Set the PHP language version under `[php]`.
 <!-- @endcallout -->
 
 ## Seeing what is installed
@@ -49,15 +49,15 @@ PHP version "8.6.0" is not installed in /home/you/esp/php-esp32 (available: 8.3.
 
 Pin the version by setting `[php] version` to one of the installed directory names. This project builds against PHP 8.5.9 regardless of what the firmware's default happens to be:
 
-<!-- @code-block language="toml" label="php-esp32.config.toml" -->
+<!-- @code-block language="toml" label="php-baremetal.config.toml" -->
 ```toml
 name         = "my-project"
-storage_type = "microsd"
 type         = "init-loop"
 
-[board]
+[esp32]
 target = "esp32-p4-pico"
 port   = ""                # empty = autodetect at flash time
+storage_type = "microsd"
 
 [php]
 src     = "project-src"

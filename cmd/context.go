@@ -12,7 +12,7 @@ import (
 	"phpflash/internal/platform"
 )
 
-// resolvePort picks the serial port: the -p flag, else the config's [board].port, else the
+// resolvePort picks the serial port: the -p flag, else the config's [esp32].port, else the
 // first serial device that actually exists (/dev/ttyACM* first -- the Pico's CH343P bridge),
 // else "" so ESP-IDF autodetects. Detection only checks that the device node exists; it never
 // opens a port, so it can't hang on or disturb a device that isn't the board.
@@ -43,7 +43,7 @@ func projectSdkconfig() string {
 func resolveDirs(idfFlag, phpFlag string, cfg *config.Config) (idfPath, phpDir string) {
 	var cIdf, cPhp string
 	if cfg != nil {
-		cIdf, cPhp = cfg.EspIdf.Path, cfg.PhpEsp32.Path
+		cIdf, cPhp = cfg.Esp32.Idf.Path, cfg.Esp32.Sdk.Path
 	}
 	idfPath = config.Resolve(config.ResolveInputs{Flag: idfFlag, Config: cIdf, Env: os.Getenv("IDF_PATH"), Default: config.DefaultIdfPath()}).Value
 	phpDir = config.Resolve(config.ResolveInputs{Flag: phpFlag, Config: cPhp, Env: os.Getenv("PHP_ESP32_DIR"), Default: config.DefaultPhpEsp32Path()}).Value
@@ -61,8 +61,8 @@ type buildContext struct {
 	buildDir    string
 	sdkconfig   string
 	storageType string
-	board       string // the configured board key, e.g. "esp32-s3-eth"
-	idfTarget   string // the board family's ESP-IDF target, e.g. "esp32s3" ("" if unresolved)
+	board       string // the resolved board key, e.g. "esp32-s3/octal" or "esp32-p4"
+	idfTarget   string // the chip's ESP-IDF target, e.g. "esp32s3" ("" if unresolved)
 	secure      bool   // the project enables Flash Encryption and/or Secure Boot (flash writes encrypted)
 }
 
@@ -94,13 +94,24 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Pin the ESP-IDF target from the board's family. Without it, idf.py "guesses" the target from
-	// any stray in-source sdkconfig -- which silently builds the wrong architecture when that file is
-	// left over from a different family (e.g. an esp32p4 sdkconfig while building an esp32s3 board).
-	idfTarget, _ := manifest.TargetForBoard(phpDir, cfg.Board.Target)
-	if idfTarget != "" {
-		dargs = append(dargs, "-DIDF_TARGET="+idfTarget)
+	// Board resolution (chip->mode->preset): a [esp32] preset/family supplies the -DBOARD key, the
+	// ESP-IDF target, the flash size, the display name and the peripheral pins. Pinning the target
+	// matters because without it idf.py "guesses" from any stray in-source sdkconfig and can silently
+	// build the wrong architecture; the flash size lets gen-partitions.cmake size the app partition to
+	// fill the flash (no per-board magic number).
+	res, rerr := resolveBoard(cfg, phpDir, projectBuildDir())
+	if rerr != nil {
+		return nil, rerr
 	}
+	dargs = append(dargs, "-DBOARD="+res.BoardKey)
+	dargs = append(dargs, res.DArgs...)
+	if res.IDFTarget != "" {
+		dargs = append(dargs, "-DIDF_TARGET="+res.IDFTarget)
+	}
+	if res.FlashKB > 0 {
+		dargs = append(dargs, fmt.Sprintf("-DPHP_FLASH_SIZE_KB=%d", res.FlashKB))
+	}
+	idfTarget, boardKey := res.IDFTarget, res.BoardKey
 	// For an `embedded` project, build the PHP source into the firmware image. The
 	// project dir is the current working directory (where the config lives).
 	if wd, err := os.Getwd(); err == nil {
@@ -120,7 +131,7 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 			dargs = append(dargs, arg)
 		}
 		// Secure Boot v2: provision (or reuse) the per-unit signing key and point the build at it.
-		if cfg.SecureBoot {
+		if cfg.Esp32.SecureBoot {
 			arg, err := resolveSecureBootKey(cfg, wd, idfPath)
 			if err != nil {
 				return nil, err
@@ -166,12 +177,12 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 		idfPath:     idfPath,
 		dargs:       dargs,
 		fetches:     fetches,
-		port:        cfg.Board.Port,
+		port:        cfg.Esp32.Port,
 		buildDir:    projectBuildDir(),
 		sdkconfig:   projectSdkconfig(),
-		storageType: cfg.StorageType,
-		board:       cfg.Board.Target,
+		storageType: cfg.Esp32.StorageType,
+		board:       boardKey,
 		idfTarget:   idfTarget,
-		secure:      cfg.Secure || cfg.SecureBoot,
+		secure:      cfg.Esp32.Secure || cfg.Esp32.SecureBoot,
 	}, nil
 }

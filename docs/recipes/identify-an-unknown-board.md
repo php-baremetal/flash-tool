@@ -1,6 +1,6 @@
 ---
 eyebrow: 'Docs · Recipes'
-lede:    'You have an unlabeled ESP32 board and the chip alone cannot tell which model it is. phpflash discover --all flashes a small probe firmware, built per candidate board, brings the peripherals up on each, and prints a boxed verdict with the exact -DBOARD= value to build with.'
+lede:    'You have an unlabeled ESP32 board and the chip alone cannot tell which model it is. phpflash discover --all flashes a small probe firmware, built per candidate preset, brings the peripherals up on each, and prints a boxed verdict with the exact [esp32] preset to set.'
 see_also:
   - { href: '../commands/discover.md', meta: '6 min' }
   - { href: '../../getting-started/quick-start.md', meta: '10 min', label: 'Quick start' }
@@ -11,7 +11,7 @@ next: { label: 'Customize the partition table', href: './custom-partition-table.
 
 # Identify an unknown board
 
-Two boards in the same chip family share the same silicon, so probing the chip cannot tell a P4-ETH from a P4-Pico: the difference is board-level wiring — whether there is an Ethernet PHY, whether there is a microSD slot. `phpflash discover --all` settles it by actively probing those peripherals: it flashes a small discovery firmware, built once per candidate board so it uses each board's real GPIO wiring, brings up the peripherals, and names the match.
+Two presets for the same chip share the same silicon, so probing the chip cannot tell a P4-ETH from a P4-Pico: the difference is board-level wiring — whether there is an Ethernet PHY, whether there is a microSD slot. `phpflash discover --all` settles it by actively probing those peripherals: it flashes a small discovery firmware, built once per candidate preset so it uses each preset's real GPIO wiring, brings up the peripherals, and names the match.
 
 ## What you need
 
@@ -25,7 +25,7 @@ Two boards in the same chip family share the same silicon, so probing the chip c
 
 ## Look at the chip first
 
-Plug the board in and run plain `discover`. It lists the serial ports and their USB bridge, probes the chip with esptool, and maps it to the supported boards in that family — enough to know the family and get a paste-ready `[board] target` line, but not which model within the family:
+Plug the board in and run plain `discover`. It lists the serial ports and their USB bridge, probes the chip with esptool, and maps it to the supported boards in that family — enough to know the family and get a paste-ready `[esp32] target` line, but not which model within the family:
 
 <!-- @code-block language="bash" label="terminal — discover" -->
 ```bash
@@ -33,7 +33,7 @@ phpflash discover
 ```
 <!-- @endcode-block -->
 
-The chip and its built-in radio come straight from the silicon; the `network` and `microSD` columns are what each board *model* declares in its `board.toml`, since the chip cannot be probed for them. When the family has more than one model, that is the ambiguity `--all` resolves.
+The chip and its built-in radio come straight from the silicon; the `network` and `microSD` columns are what each preset wires, since the chip cannot be probed for them. When the chip has more than one preset, that is the ambiguity `--all` resolves.
 
 ## Probe the peripherals
 
@@ -49,15 +49,16 @@ Each candidate prints a short probe report. When a board's own wiring brings its
 
 <!-- @code-block language="text" label="discover --all output (verdict)" -->
 ```text
-== Probing with the esp32-p4-eth wiring ==
-  board wiring: ESP32-P4-ETH
+== Probing with the waveshare-esp32-p4-eth wiring ==
   Ethernet:     up (10.42.0.224)
   microSD:      card present (14895MB)
   PSRAM:        32MB
 
 ====================================================
-  THIS BOARD IS:  ESP32-P4-ETH
-  build with:     -DBOARD=esp32-p4-eth
+  THIS BOARD IS:  Waveshare ESP32-P4-ETH
+  set in php-baremetal.config.toml:
+    [esp32]
+    preset = "waveshare-esp32-p4-eth"
 ====================================================
 
 The discovery firmware is on the board now -- re-flash your project:
@@ -67,29 +68,29 @@ The discovery firmware is on the board now -- re-flash your project:
 
 ## Read the verdict
 
-The boxed block is the answer. `THIS BOARD IS` names the model, and `build with: -DBOARD=<key>` gives the exact board key. Put that key into a project as `[board] target`:
+The boxed block is the answer. `THIS BOARD IS` names the model, and the verdict prints the `[esp32] preset` to set. Put that preset into a project:
 
-<!-- @code-block language="toml" label="php-esp32.config.toml" -->
+<!-- @code-block language="toml" label="php-baremetal.config.toml" -->
 ```toml
-[board]
-target = "esp32-p4-eth"      # the key from the verdict box
+[esp32]
+preset = "waveshare-esp32-p4-eth"      # the preset from the verdict box
 ```
 <!-- @endcode-block -->
 
 ## When it cannot decide
 
-The probe is honest about ambiguity. If nothing came up — no Ethernet link, no card — it cannot separate a slotless `-zero` board from a board with an empty slot, and it says so rather than guessing:
+The probe is honest about ambiguity. If nothing came up — no Ethernet link, no card — it cannot separate a slotless preset from a board with an empty slot, and it says so rather than guessing:
 
 <!-- @code-block language="text" label="discover --all output (undecided)" -->
 ```text
 Couldn't uniquely identify the board -- the probe results are above.
 If it has Ethernet, connect the cable (the probe needs the link up) and retry.
 If it has a microSD slot, insert a card and retry; if it has neither
-network nor a card slot, it's the slotless variant (e.g. -zero).
+network nor a card slot, it's the slotless variant.
 ```
 <!-- @endcode-block -->
 
-Insert a card (a mounted card rules out the slotless variant) or connect the network cable and run it again. A single non-network candidate in the family is decided even without a card, since there is nothing else it could be.
+Insert a card (a mounted card rules out the slotless variant) or connect the network cable and run it again. A single non-network preset for the chip is decided even without a card, since there is nothing else it could be.
 
 ## After identifying
 

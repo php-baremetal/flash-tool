@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 
 	"phpflash/internal/config"
@@ -71,7 +70,8 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 	}
 	sort.Strings(sorted)
 
-	dargs = append(dargs, "-DBOARD="+cfg.Board.Target, "-DPHP_VERSION="+phpVersion)
+	// -DBOARD is appended by the caller from the resolved preset/family (chip or chip/mode key).
+	dargs = append(dargs, "-DPHP_VERSION="+phpVersion)
 	if cfg.Name != "" {
 		// Exposed by the firmware in phpinfo()'s "PHP Baremetal Infos" table (main.c -> PHP_ESP32_PROJECT_NAME).
 		dargs = append(dargs, "-DPHP_ESP32_PROJECT_NAME="+cfg.Name)
@@ -79,15 +79,15 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 	// Always emit the CPU-freq flag (empty when unset) so a reused build dir can't keep a stale
 	// cached value -- same reason the extension flags below are always passed ON/OFF.
 	freq := ""
-	if cfg.Board.CPUFreqMHz > 0 {
-		freq = fmt.Sprintf("%d", cfg.Board.CPUFreqMHz)
+	if cfg.Esp32.CPUFreqMHz > 0 {
+		freq = fmt.Sprintf("%d", cfg.Esp32.CPUFreqMHz)
 	}
 	dargs = append(dargs, "-DPHP_CPU_FREQ_MHZ="+freq)
 
 	// power_save: esp_pm automatic light sleep. Always emitted ON/OFF so a reused build dir can't
 	// keep a stale value.
 	powerSave := "OFF"
-	if cfg.PowerSave {
+	if cfg.Esp32.PowerSave {
 		powerSave = "ON"
 	}
 	dargs = append(dargs, "-DPHP_POWER_SAVE="+powerSave)
@@ -95,7 +95,7 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 	// secure: Flash Encryption. Marks the embedded 'storage' partition encrypted and turns on the
 	// secure sdkconfig. Always emitted ON/OFF (stale build dirs).
 	secure := "OFF"
-	if cfg.Secure {
+	if cfg.Esp32.Secure {
 		secure = "ON"
 	}
 	dargs = append(dargs, "-DPHP_SECURE="+secure)
@@ -103,7 +103,7 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 	// secure_boot: Secure Boot v2. The per-unit signing key path is resolved and appended separately
 	// (it needs the board MAC / the deploys dir), so Args only emits the ON/OFF toggle here.
 	secureBoot := "OFF"
-	if cfg.SecureBoot {
+	if cfg.Esp32.SecureBoot {
 		secureBoot = "ON"
 	}
 	dargs = append(dargs, "-DPHP_SECURE_BOOT="+secureBoot)
@@ -147,7 +147,7 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 	}
 	// microSD support: on unless this is an `embedded` project that didn't opt into a card.
 	// A `microsd` project always has the card; embedded defaults to no card (SD drivers dropped).
-	microsd := cfg.StorageType != "embedded" || cfg.Storage.Microsd
+	microsd := cfg.Esp32.StorageType != "embedded" || cfg.Esp32.Storage.Microsd
 	msdState := "OFF"
 	if microsd {
 		msdState = "ON"
@@ -155,7 +155,7 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 	dargs = append(dargs, "-DPHP_STORAGE_MICROSD="+msdState)
 	// Extra KB for the embedded `storage` partition ([storage] reserve_kb); always passed (0 when
 	// unset) so a reused build dir can't keep a stale value.
-	reserve := cfg.Storage.ReserveKB
+	reserve := cfg.Esp32.Storage.ReserveKB
 	if reserve < 0 {
 		reserve = 0
 	}
@@ -167,18 +167,6 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 		store = 0
 	}
 	dargs = append(dargs, fmt.Sprintf("-DPHP_STORE_KB=%d", store))
-	// s3_onboard_rgb (ESP32-S3 onboard RGB LED) data pin: default GPIO 48, override with
-	// [extensions.s3_onboard_rgb] pin = N. Always passed so a reused build dir can't keep a stale
-	// value; it's only read when the extension is compiled (esp32s3 + flag on).
-	rgbPin := 48
-	if ext, ok := cfg.Extensions["s3_onboard_rgb"]; ok {
-		if p, ok := ext.Options["pin"]; ok {
-			if n, err := strconv.Atoi(p); err == nil {
-				rgbPin = n
-			}
-		}
-	}
-	dargs = append(dargs, fmt.Sprintf("-DPHP_S3_RGB_GPIO=%d", rgbPin))
 	// i2c drivers ([extensions.i2c] drivers = [...]): a semicolon list the php_ext_i2c component turns
 	// into its generated driver table. Always passed (empty when none) so a reused build dir can't
 	// keep a stale value.
@@ -193,6 +181,12 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 		spiDrivers = ext.Options["drivers"]
 	}
 	dargs = append(dargs, "-DPHP_SPI_DRIVERS="+spiDrivers)
+	// led drivers ([extensions.led] leds = [...]): same mechanism as the i2c/spi drivers.
+	ledDrivers := ""
+	if ext, ok := cfg.Extensions["led"]; ok {
+		ledDrivers = ext.Options["leds"]
+	}
+	dargs = append(dargs, "-DPHP_LED_DRIVERS="+ledDrivers)
 	return dargs, eff.Fetches, nil
 }
 
@@ -202,7 +196,7 @@ func Args(cfg *config.Config, m *manifest.Manifest, phpVersion string) (dargs []
 // the project's PHP source folder ([php].src, default "project-src") resolved to an absolute
 // path against projectDir, since ESP-IDF runs from its own build tree.
 func EmbedArg(cfg *config.Config, projectDir string) (string, bool) {
-	if cfg.StorageType != "embedded" {
+	if cfg.Esp32.StorageType != "embedded" {
 		return "", false
 	}
 	src := cfg.Php.Src
@@ -365,10 +359,10 @@ func caFilePath(cfg *config.Config) string {
 // firmware, or false when none are configured (DHCP-provided DNS then stands). Comma, not ';':
 // CMake treats ';' as a list separator and would split the define.
 func DNSArg(cfg *config.Config) (string, bool) {
-	if len(cfg.Network.Dns) == 0 {
+	if len(cfg.Esp32.Network.Dns) == 0 {
 		return "", false
 	}
-	return "-DPHP_NET_DNS=" + strings.Join(cfg.Network.Dns, ","), true
+	return "-DPHP_NET_DNS=" + strings.Join(cfg.Esp32.Network.Dns, ","), true
 }
 
 // TLSCAArg returns -DPHP_TLS_CAFILE with the CA bundle path, when the project builds the TLS
