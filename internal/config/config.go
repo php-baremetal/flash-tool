@@ -109,6 +109,16 @@ type StorageConfig struct {
 	// automatic fit. (The image is read-only, so this is headroom for a bigger source, not runtime
 	// growth.)
 	ReserveKB int `toml:"reserve_kb"`
+
+	// SD peripheral overrides, laid field by field over the preset's [storage.microsd]: Mode is
+	// "sdio" or "spi"; a nil pin keeps the preset's (or board.c's) value. PwrEn is an optional
+	// card-VDD switch GPIO.
+	Mode  string `toml:"mode"`
+	CS    *int   `toml:"cs"`
+	SCLK  *int   `toml:"sclk"`
+	MOSI  *int   `toml:"mosi"`
+	MISO  *int   `toml:"miso"`
+	PwrEn *int   `toml:"pwr_en"`
 }
 
 type SourceConfig struct {

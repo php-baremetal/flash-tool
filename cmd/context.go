@@ -130,6 +130,10 @@ func loadBuildContext(idfFlag, phpFlag string) (*buildContext, error) {
 		if arg, ok := build.ProjectExtsArg(wd); ok {
 			dargs = append(dargs, arg)
 		}
+		// Composer-managed driver packages: the plugin's baremetal.gen.json drives their compilation.
+		if arg, ok := build.ManifestArg(wd); ok {
+			dargs = append(dargs, arg)
+		}
 		// Secure Boot v2: provision (or reuse) the per-unit signing key and point the build at it.
 		if cfg.Esp32.SecureBoot {
 			arg, err := resolveSecureBootKey(cfg, wd, idfPath)

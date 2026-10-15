@@ -34,8 +34,9 @@ type metaFile struct {
 	DefaultFlash string `toml:"default_flash"`
 }
 
-// presetMicrosd / presetNetwork are a preset's (or, later, a project's) peripheral blocks. Pins are
-// pointers so an unset pin (nil) falls back to the chip board.c's factory default instead of 0.
+// presetMicrosd / presetNetwork are a preset's peripheral blocks (a project's [esp32.storage]
+// overlays the SD one). Pins are pointers so an unset pin (nil) falls back to the chip board.c's
+// factory default instead of 0.
 type presetMicrosd struct {
 	Mode  string `toml:"mode"`
 	CS    *int   `toml:"cs"`    // SPI SD (S3)
@@ -100,6 +101,17 @@ func resolveBoard(cfg *config.Config, phpDir, buildDir string) (res boardResolut
 	if _, err = toml.DecodeFile(presetPath, &preset); err != nil {
 		return res, fmt.Errorf("preset %s: %w", presetPath, err)
 	}
+
+	// The project's [esp32.storage] SD settings override the preset's per field; the merged result is
+	// validated against the chip below like a preset's own.
+	if cfg.Esp32.Storage.Mode != "" {
+		preset.Storage.Microsd.Mode = cfg.Esp32.Storage.Mode
+	}
+	overlayPin(&preset.Storage.Microsd.CS, cfg.Esp32.Storage.CS)
+	overlayPin(&preset.Storage.Microsd.SCLK, cfg.Esp32.Storage.SCLK)
+	overlayPin(&preset.Storage.Microsd.MOSI, cfg.Esp32.Storage.MOSI)
+	overlayPin(&preset.Storage.Microsd.MISO, cfg.Esp32.Storage.MISO)
+	overlayPin(&preset.Storage.Microsd.PwrEn, cfg.Esp32.Storage.PwrEn)
 
 	// Walk up from the preset to the chip (the ancestor holding chip.toml) and the mode leaf between.
 	presetsDir := filepath.Dir(presetPath) // .../presets
@@ -239,6 +251,13 @@ func writePresetFragment(buildDir, flashStr, console, network string) (string, e
 		return "", err
 	}
 	return path, nil
+}
+
+// overlayPin replaces *dst with src when src is set (nil = keep the preset's pin).
+func overlayPin(dst **int, src *int) {
+	if src != nil {
+		*dst = src
+	}
 }
 
 // appendPin adds a -D<name>=<gpio> arg when the pin is set (nil = keep board.c's default).

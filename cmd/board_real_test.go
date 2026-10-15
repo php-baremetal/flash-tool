@@ -109,3 +109,40 @@ func TestResolveBoardErrors(t *testing.T) {
 		t.Error("unknown preset: want error")
 	}
 }
+
+func TestResolveBoardProjectSDOverride(t *testing.T) {
+	phpDir := repoPhpDir(t)
+	build := t.TempDir()
+
+	// [esp32.storage] pins are parsed from the project file and override the preset per field.
+	dir := t.TempDir()
+	path := filepath.Join(dir, config.FileName)
+	toml := "[esp32]\npreset = \"waveshare-esp32-s3-eth\"\n\n[esp32.storage]\ncs = 21\nmiso = 2\npwr_en = 3\n"
+	if err := os.WriteFile(path, []byte(toml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	res, err := resolveBoard(cfg, phpDir, build)
+	if err != nil {
+		t.Fatalf("resolveBoard: %v", err)
+	}
+	for _, want := range []string{"-DPHP_SD_CS=21", "-DPHP_SD_MISO=2", "-DPHP_SD_PWR_EN=3", "-DPHP_SD_CLK=7", "-DPHP_SD_MOSI=6"} {
+		if !hasArg(res.DArgs, want) {
+			t.Errorf("missing %s in %v", want, res.DArgs)
+		}
+	}
+	if hasArg(res.DArgs, "-DPHP_SD_CS=4") {
+		t.Errorf("preset CS not overridden: %v", res.DArgs)
+	}
+
+	// A mode the chip can't drive is rejected, as for a preset.
+	cfg = &config.Config{}
+	cfg.Esp32.Preset = "waveshare-esp32-s3-eth"
+	cfg.Esp32.Storage.Mode = "sdio"
+	if _, err := resolveBoard(cfg, phpDir, build); err == nil {
+		t.Error("sdio on S3: want error")
+	}
+}

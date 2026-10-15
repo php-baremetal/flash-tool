@@ -227,6 +227,19 @@ func ProjectExtsArg(projectDir string) (string, bool) {
 	return "", false
 }
 
+// ManifestArg returns the -DBAREMETAL_MANIFEST argument pointing at the project's baremetal.gen.json,
+// the manifest the php-baremetal Composer plugin writes from the resolved driver packages. The host
+// build reads it to compile those packages alongside the in-tree drivers. The bool is false when the
+// project has no manifest (no Composer-managed drivers). The path is absolute, since ESP-IDF runs from
+// its own build tree.
+func ManifestArg(projectDir string) (string, bool) {
+	p := filepath.Join(projectDir, "baremetal.gen.json")
+	if _, err := os.Stat(p); err != nil {
+		return "", false
+	}
+	return "-DBAREMETAL_MANIFEST=" + p, true
+}
+
 // PartitionsArg returns the -DPHP_PARTITIONS_CSV argument when the project ships its own partition
 // table (a `partitions.csv` next to the config). The firmware's gen-partitions.cmake then uses it as
 // the fixed-partition spec instead of the board's committed table (still appending the generated

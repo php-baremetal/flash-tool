@@ -102,13 +102,19 @@ resolution](#path-and-version-resolution) below for the full precedence.
 
 ## `[esp32.storage]`
 
-Only meaningful for an `embedded` project, and written by `init` only in that case. A `microsd`
-project always has the card, so neither key applies to it.
+`microsd` and `reserve_kb` are only meaningful for an `embedded` project, and written by `init` only
+in that case; a `microsd` project always has the card. The SD wiring keys apply to any project that
+mounts a card, and override the preset's `[storage.microsd]` one field at a time.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `microsd` | bool | `false` | For an `embedded` project, also mount a microSD for writable data alongside the baked-in source. Off means the SD drivers are not even compiled in. |
 | `reserve_kb` | int | `0` (just fit the source) | Pads the embedded `storage` partition: the firmware sizes it to the source plus FAT overhead and adds this many KB on top. Headroom for a larger source, not runtime growth — the image is read-only. |
+| `mode` | string | the preset's | `"spi"` or `"sdio"`; must be one the chip supports. |
+| `cs`, `sclk`, `mosi`, `miso` | int | the preset's, else the board default | SD pins (GPIO). `cs`/`mosi`/`miso` are SPI-only; `sclk` is the clock in either mode. |
+| `pwr_en` | int | the preset's (none) | GPIO switching the card's VDD, driven low to power it. |
+
+Removing a pin takes effect only after `build --clean`: CMake keeps the previous value in its cache.
 
 ## `[esp32.network]`
 
