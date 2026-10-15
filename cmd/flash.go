@@ -82,8 +82,9 @@ func newFlashCmd() *cobra.Command {
 				return err
 			}
 			// A microsd project ships no embedded image; wipe the `storage` partition so a leftover
-			// one from an earlier embedded build can't mount at /app and shadow the microSD.
-			if bc.storageType != "" && bc.storageType != "embedded" {
+			// one from an earlier embedded build can't mount at /app and shadow the microSD. Skipped when
+			// the flashed table has no `storage` partition: then there is nothing to mount or erase.
+			if bc.storageType != "" && bc.storageType != "embedded" && build.FlashedTableHasStorage(bc.buildDir) {
 				build.EraseStoragePartition(inv, os.Stdout, p)
 			}
 			return nil

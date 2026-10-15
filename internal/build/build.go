@@ -568,6 +568,24 @@ func EraseStoragePartition(inv Invoker, out io.Writer, port string) {
 	}
 }
 
+// FlashedTableHasStorage reports whether the partition table the firmware build generated
+// (<buildDir>/partitions.gen.csv) has a `storage` row. A microSD build leaves it out, so the
+// firmware can't find a stale embedded image there and EraseStoragePartition has nothing to do.
+// A missing table (a firmware that predates generated partitions) counts as true.
+func FlashedTableHasStorage(buildDir string) bool {
+	b, err := os.ReadFile(filepath.Join(buildDir, "partitions.gen.csv"))
+	if err != nil {
+		return true
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		name, _, _ := strings.Cut(strings.TrimSpace(line), ",")
+		if strings.TrimSpace(name) == "storage" {
+			return true
+		}
+	}
+	return false
+}
+
 // Monitor runs `idf.py -B <buildDir>/compiled [-p port] monitor`.
 func Monitor(inv Invoker, out io.Writer, buildDir, port string) error {
 	args := []string{"-B", compiledDir(buildDir)}

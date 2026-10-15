@@ -494,6 +494,31 @@ func TestEraseStoragePartitionErrorIsNonFatal(t *testing.T) {
 	}
 }
 
+func TestFlashedTableHasStorage(t *testing.T) {
+	cases := []struct {
+		name string
+		csv  string // "" = no generated table
+		want bool
+	}{
+		{name: "no table", want: true},
+		{name: "microsd", csv: "nvs, data, nvs, , 24K,\nphy_init, data, phy, , 4K,\nfactory, app, factory, , 7M,\nphpstore, data, nvs, , 64K,\n", want: false},
+		{name: "embedded", csv: "nvs, data, nvs, , 24K,\nfactory, app, factory, , 7M,\nstorage,    data, fat,      ,         512K,  \n", want: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if tc.csv != "" {
+				if err := os.WriteFile(filepath.Join(dir, "partitions.gen.csv"), []byte(tc.csv), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if got := FlashedTableHasStorage(dir); got != tc.want {
+				t.Errorf("FlashedTableHasStorage = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestMonitorNoPort(t *testing.T) {
 	f := &fakeInvoker{}
 	if err := Monitor(f, io.Discard, "/proj/build", ""); err != nil {

@@ -109,6 +109,10 @@ prefers `/app` over `/sdcard`, the board would then silently run that stale sour
 with no error. Erasing the partition guarantees the embedded mount fails and the firmware falls back to
 the microSD.
 
+A firmware that generates its partition table per build gives a `microsd` project no `storage`
+partition at all, so nothing stale can mount and the erase is skipped. It runs only when the generated
+table (`build/partitions.gen.csv`) has a `storage` row, or when there is no generated table.
+
 The erase is best-effort: it runs `parttool erase_partition --partition-name storage`, and a board with
 no `storage` partition (or one that cannot be reached) is not a flash failure — the error is reported
 and swallowed rather than returned.
